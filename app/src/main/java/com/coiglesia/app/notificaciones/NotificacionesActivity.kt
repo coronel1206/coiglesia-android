@@ -285,6 +285,42 @@ class NotificacionesActivity : Activity() {
                     tarjeta.addView(descripcion)
                     tarjeta.addView(fecha)
 
+                    if (aviso.pendiente) {
+                        val botonLeida = Button(this).apply {
+                            text = "Marcar como leída"
+                            isAllCaps = false
+
+                            setOnClickListener {
+                                isEnabled = false
+                                text = "Actualizando..."
+
+                                Thread {
+                                    val resultado =
+                                        NotificacionesService.marcarLeida(
+                                            token,
+                                            aviso.id
+                                        )
+
+                                    runOnUiThread {
+                                        if (isFinishing || isDestroyed) {
+                                            return@runOnUiThread
+                                        }
+
+                                        if (resultado.correcto) {
+                                            cargarNotificaciones()
+                                        } else {
+                                            isEnabled = true
+                                            text = "Marcar como leída"
+                                            mensaje.text = resultado.mensaje
+                                        }
+                                    }
+                                }.start()
+                            }
+                        }
+
+                        tarjeta.addView(botonLeida)
+                    }
+
                     val espacio = LinearLayout.LayoutParams(
                         -1,
                         -2

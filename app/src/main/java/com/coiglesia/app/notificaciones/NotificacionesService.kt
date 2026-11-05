@@ -179,4 +179,121 @@ object NotificacionesService {
             conexion?.disconnect()
         }
     }
+
+    fun marcarLeida(
+        token: String,
+        notificacionId: String
+    ): Resultado {
+
+        if (token.isBlank() || notificacionId.isBlank()) {
+            return Resultado(
+                correcto = false,
+                mensaje = "Sesion o notificacion no disponible"
+            )
+        }
+
+        var conexion: HttpURLConnection? = null
+
+        return try {
+            val baseUrl =
+                BuildConfig.SUPABASE_URL.trimEnd('/')
+
+            val apiKey =
+                BuildConfig.SUPABASE_PUBLISHABLE_KEY
+
+            require(
+                baseUrl.startsWith("https://") &&
+                apiKey.isNotBlank()
+            ) {
+                "Configuracion de Supabase incompleta"
+            }
+
+            conexion = URL(
+                "$baseUrl/rest/v1/rpc/marcar_notificacion_leida_app"
+            ).openConnection() as HttpURLConnection
+
+            conexion.requestMethod = "POST"
+            conexion.connectTimeout = 15000
+            conexion.readTimeout = 15000
+            conexion.doOutput = true
+
+            conexion.setRequestProperty(
+                "Content-Type",
+                "application/json"
+            )
+            conexion.setRequestProperty("apikey", apiKey)
+            conexion.setRequestProperty(
+                "Authorization",
+                "Bearer $token"
+            )
+
+            val parametros = JSONObject()
+                .put("p_notificacion_id", notificacionId)
+
+            conexion.outputStream.use {
+                it.write(
+                    parametros.toString()
+                        .toByteArray(Charsets.UTF_8)
+                )
+            }
+
+            val status = conexion.responseCode
+
+            val respuesta = (
+                if (status in 200..299) {
+                    conexion.inputStream
+                } else {
+                    conexion.errorStream
+                }
+            )?.bufferedReader()?.use {
+                it.readText()
+            } ?: ""
+
+            if (status !in 200..299) {
+                val error = try {
+                    JSONObject(respuesta)
+                } catch (_: Exception) {
+                    JSONObject()
+                }
+
+                val mensaje = if (
+                    status == 401 ||
+                    status == 403 ||
+                    error.optString("code") == "42501"
+                ) {
+                    "No tiene autorizacion para esta notificacion"
+                } else {
+                    error.optString(
+                        "message",
+                        "No fue posible actualizar la notificacion"
+                    )
+                }
+
+                Resultado(
+                    correcto = false,
+                    mensaje = mensaje
+                )
+            } else if (respuesta.trim() == "true") {
+                Resultado(
+                    correcto = true,
+                    mensaje = "Notificacion marcada como leida"
+                )
+            } else {
+                Resultado(
+                    correcto = false,
+                    mensaje = "Respuesta inesperada del servidor"
+                )
+            }
+
+        } catch (e: Exception) {
+            Resultado(
+                correcto = false,
+                mensaje = e.message
+                    ?: "Error al actualizar notificacion"
+            )
+        } finally {
+            conexion?.disconnect()
+        }
+    }
+
 }
