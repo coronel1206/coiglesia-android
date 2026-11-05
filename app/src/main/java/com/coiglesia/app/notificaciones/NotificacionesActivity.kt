@@ -86,6 +86,17 @@ class NotificacionesActivity : Activity() {
         contenido.addView(etiqueta("Seleccionar distrito"))
         contenido.addView(selectorDistrito)
         contenido.addView(actualizar)
+
+        val verificarSeguridad = Button(this).apply {
+            text = "Verificar seguridad territorial"
+            isAllCaps = false
+            setOnClickListener {
+                probarSeguridadTerritorial()
+            }
+        }
+
+        contenido.addView(verificarSeguridad)
+
         contenido.addView(mensaje)
         contenido.addView(resumen)
         contenido.addView(lista)
@@ -146,6 +157,51 @@ class NotificacionesActivity : Activity() {
                 android.R.layout.simple_spinner_dropdown_item
             )
         }
+    }
+
+
+
+    private fun probarSeguridadTerritorial() {
+        mensaje.text = "Verificando permisos territoriales..."
+
+        Thread {
+            val resultadoDistritos =
+                DistritosService.listarAutorizados(token)
+
+            val autorizado = resultadoDistritos.datos.orEmpty()
+            val distrito01 = autorizado.firstOrNull {
+                it.codigo == "PRUEBA01"
+            }
+
+            val distrito02Visible = autorizado.any {
+                it.codigo == "PRUEBA02"
+            }
+
+            val resultado01 = distrito01?.let {
+                NotificacionesService.listar(token, it.id)
+            }
+
+            val diagnostico = when {
+                !resultadoDistritos.correcto ->
+                    "ERROR: No se pudo verificar el acceso."
+
+                distrito02Visible ->
+                    "ALERTA: PRUEBA02 aparece como autorizado."
+
+                resultado01?.correcto != true ->
+                    "ERROR: PRUEBA01 no permite consultar."
+
+                else ->
+                    "PRUEBA01: AUTORIZADO. " +
+                    "PRUEBA02: No aparece entre los distritos autorizados."
+            }
+
+            runOnUiThread {
+                if (!isFinishing && !isDestroyed) {
+                    mensaje.text = diagnostico
+                }
+            }
+        }.start()
     }
 
     private fun cargarDistritos() {
