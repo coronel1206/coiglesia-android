@@ -1,7 +1,6 @@
 package com.coiglesia.app.auth
 
 import com.coiglesia.app.BuildConfig
-import org.json.JSONArray
 import java.net.HttpURLConnection
 import java.net.URL
 
@@ -13,15 +12,18 @@ object AccessVerifier {
     )
 
     fun verify(accessToken: String): AccessResult {
+
         val baseUrl = BuildConfig.SUPABASE_URL.trimEnd('/')
         val apiKey = BuildConfig.SUPABASE_PUBLISHABLE_KEY
 
-        if (baseUrl.isBlank() || apiKey.isBlank() ||
+        if (
+            !baseUrl.startsWith("https://") ||
+            apiKey.isBlank() ||
             accessToken.isBlank()
         ) {
             return AccessResult(
                 false,
-                "Configuración o sesión incompleta"
+                "Configuracion o sesion incompleta"
             )
         }
 
@@ -29,7 +31,7 @@ object AccessVerifier {
 
         return try {
             connection = URL(
-                "$baseUrl/rest/v1/rpc/verificar_acceso_app"
+                "$baseUrl/rest/v1/rpc/tiene_acceso_app"
             ).openConnection() as HttpURLConnection
 
             connection.requestMethod = "POST"
@@ -48,7 +50,9 @@ object AccessVerifier {
             )
 
             connection.outputStream.use {
-                it.write("{}".toByteArray(Charsets.UTF_8))
+                it.write(
+                    "{}".toByteArray(Charsets.UTF_8)
+                )
             }
 
             val status = connection.responseCode
@@ -56,40 +60,31 @@ object AccessVerifier {
             if (status !in 200..299) {
                 AccessResult(
                     false,
-                    "No fue posible verificar la autorización"
+                    "No fue posible verificar la autorizacion"
                 )
             } else {
                 val response = connection.inputStream
                     .bufferedReader()
                     .use { it.readText() }
 
-                val rows = JSONArray(response)
-
-                if (rows.length() != 1) {
-                    AccessResult(false, "Respuesta de acceso inválida")
-                } else {
-                    val data = rows.getJSONObject(0)
-
-                    val active = data.optBoolean(
-                        "usuario_activo", false
-                    )
-                    val nationalAdmin = data.optBoolean(
-                        "administrador_nacional", false
+                when (response.trim()) {
+                    "true" -> AccessResult(
+                        true,
+                        "Usuario autorizado"
                     )
 
-                    if (active && nationalAdmin) {
-                        AccessResult(
-                            true,
-                            "Administrador Nacional autorizado"
-                        )
-                    } else {
-                        AccessResult(
-                            false,
-                            "Usuario sin autorización nacional"
-                        )
-                    }
+                    "false" -> AccessResult(
+                        false,
+                        "Usuario sin cargo activo autorizado"
+                    )
+
+                    else -> AccessResult(
+                        false,
+                        "Respuesta de autorizacion invalida"
+                    )
                 }
             }
+
         } catch (e: Exception) {
             AccessResult(
                 false,
