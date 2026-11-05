@@ -131,6 +131,51 @@ object DistritosService {
         }
     }
 
+
+    fun listarAutorizados(
+        token: String
+    ): Resultado<List<Distrito>> {
+        return try {
+            val respuesta = solicitar(
+                "listar_distritos_autorizados_app",
+                token,
+                JSONObject()
+            )
+
+            val arreglo = JSONArray(respuesta)
+            val distritos = mutableListOf<Distrito>()
+
+            for (i in 0 until arreglo.length()) {
+                val item = arreglo.getJSONObject(i)
+
+                distritos.add(
+                    Distrito(
+                        id = item.getString("id"),
+                        codigo = item.getString("codigo"),
+                        nombre = item.getString("nombre"),
+                        descripcion = item.optString(
+                            "descripcion", ""
+                        ).takeUnless { it == "null" } ?: "",
+                        estado = item.getString("estado")
+                    )
+                )
+            }
+
+            Resultado(
+                correcto = true,
+                datos = distritos,
+                mensaje = "Distritos autorizados consultados"
+            )
+
+        } catch (e: Exception) {
+            Resultado(
+                correcto = false,
+                mensaje = e.message
+                    ?: "Error al consultar distritos autorizados"
+            )
+        }
+    }
+
     fun crear(
         token: String,
         codigo: String,

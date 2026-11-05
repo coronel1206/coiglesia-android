@@ -153,7 +153,7 @@ class NotificacionesActivity : Activity() {
         mensaje.text = "Cargando distritos..."
 
         Thread {
-            val resultado = DistritosService.listar(token)
+            val resultado = DistritosService.listarAutorizados(token)
 
             runOnUiThread {
                 if (isFinishing || isDestroyed) {
