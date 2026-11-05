@@ -2,6 +2,7 @@
         <uses-permission android:name="android.permission.INTERNET" />
     <application android:allowBackup="false" android:label="Coiglesia" android:theme="@android:style/Theme.Material.Light.NoActionBar" android:supportsRtl="true">
         <activity android:name=".distritos.DistritosActivity" android:exported="false" />
+        <activity android:name=".congregaciones.CongregacionesActivity" android:exported="false" />
         <activity android:name=".MainActivity" android:exported="true">
             <intent-filter><action android:name="android.intent.action.MAIN"/><category android:name="android.intent.category.LAUNCHER"/></intent-filter>
         </activity>

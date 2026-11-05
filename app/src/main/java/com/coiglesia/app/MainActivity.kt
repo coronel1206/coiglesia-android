@@ -13,6 +13,7 @@ import android.widget.TextView
 import com.coiglesia.app.auth.SupabaseAuth
 import com.coiglesia.app.auth.AccessVerifier
 import com.coiglesia.app.distritos.DistritosActivity
+import com.coiglesia.app.congregaciones.CongregacionesActivity
 
 class MainActivity : Activity() {
 
@@ -188,6 +189,22 @@ class MainActivity : Activity() {
                             )
                             intent.putExtra(
                                 DistritosActivity.EXTRA_TOKEN,
+                                token
+                            )
+                            startActivity(intent)
+                        }
+                    } else if (name == "Congregaciones") {
+                        val token = sessionToken
+
+                        if (token.isNullOrBlank()) {
+                            showLogin()
+                        } else {
+                            val intent = Intent(
+                                this@MainActivity,
+                                CongregacionesActivity::class.java
+                            )
+                            intent.putExtra(
+                                CongregacionesActivity.EXTRA_TOKEN,
                                 token
                             )
                             startActivity(intent)
