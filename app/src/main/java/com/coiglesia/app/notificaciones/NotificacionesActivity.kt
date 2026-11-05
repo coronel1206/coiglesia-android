@@ -161,44 +161,51 @@ class NotificacionesActivity : Activity() {
 
 
 
+
     private fun probarSeguridadTerritorial() {
-        mensaje.text = "Verificando permisos territoriales..."
+        mensaje.text = "Probando seguridad en Supabase..."
 
         Thread {
-            val resultadoDistritos =
+            val distritosResultado =
                 DistritosService.listarAutorizados(token)
 
-            val autorizado = resultadoDistritos.datos.orEmpty()
-            val distrito01 = autorizado.firstOrNull {
-                it.codigo == "PRUEBA01"
-            }
-
-            val distrito02Visible = autorizado.any {
-                it.codigo == "PRUEBA02"
-            }
+            val distrito01 = distritosResultado.datos
+                .orEmpty()
+                .firstOrNull { it.codigo == "PRUEBA01" }
 
             val resultado01 = distrito01?.let {
                 NotificacionesService.listar(token, it.id)
             }
 
-            val diagnostico = when {
-                !resultadoDistritos.correcto ->
-                    "ERROR: No se pudo verificar el acceso."
+            val resultado02 = NotificacionesService.listar(
+                token,
+                "17e376e8-8f00-4e9e-9e22-35c96113b449"
+            )
 
-                distrito02Visible ->
-                    "ALERTA: PRUEBA02 aparece como autorizado."
+            val mensajeFinal = when {
+                !distritosResultado.correcto ->
+                    "ERROR: No se pudieron consultar los distritos."
 
                 resultado01?.correcto != true ->
-                    "ERROR: PRUEBA01 no permite consultar."
+                    "ERROR: PRUEBA01 no permitio la consulta."
+
+                resultado02.correcto ->
+                    "ALERTA DE SEGURIDAD: Supabase permitio " +
+                    "consultar PRUEBA02 sin autorizacion."
+
+                resultado02.mensaje ==
+                    "No tiene autorizacion para consultar este distrito" ->
+                    "SEGURIDAD CORRECTA: PRUEBA01 autorizado. " +
+                    "PRUEBA02 rechazado por Supabase."
 
                 else ->
-                    "PRUEBA01: AUTORIZADO. " +
-                    "PRUEBA02: No aparece entre los distritos autorizados."
+                    "PRUEBA01 autorizado. PRUEBA02 no se pudo " +
+                    "consultar: ${resultado02.mensaje}"
             }
 
             runOnUiThread {
                 if (!isFinishing && !isDestroyed) {
-                    mensaje.text = diagnostico
+                    mensaje.text = mensajeFinal
                 }
             }
         }.start()
