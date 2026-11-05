@@ -114,7 +114,7 @@ class ObrasActivity : Activity() {
         contenido.addView(lista)
 
         val scroll = ScrollView(this).apply {
-            fillViewport = true
+            isFillViewport = true
             addView(contenido)
         }
 
