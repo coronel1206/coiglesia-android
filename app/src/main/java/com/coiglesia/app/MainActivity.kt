@@ -16,6 +16,7 @@ import com.coiglesia.app.auth.AccessVerifier
 import com.coiglesia.app.distritos.DistritosActivity
 import com.coiglesia.app.congregaciones.CongregacionesActivity
 import com.coiglesia.app.obras.ObrasActivity
+import com.coiglesia.app.personas.PersonasActivity
 
 class MainActivity : Activity() {
 
@@ -240,6 +241,22 @@ class MainActivity : Activity() {
                             )
                             intent.putExtra(
                                 NotificacionesActivity.EXTRA_TOKEN,
+                                token
+                            )
+                            startActivity(intent)
+                        }
+                    } else if (name == "Personas y miembros") {
+                        val token = sessionToken
+
+                        if (token.isNullOrBlank()) {
+                            showLogin()
+                        } else {
+                            val intent = Intent(
+                                this@MainActivity,
+                                PersonasActivity::class.java
+                            )
+                            intent.putExtra(
+                                PersonasActivity.EXTRA_TOKEN,
                                 token
                             )
                             startActivity(intent)
