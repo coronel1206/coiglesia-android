@@ -14,6 +14,7 @@ import com.coiglesia.app.auth.SupabaseAuth
 import com.coiglesia.app.auth.AccessVerifier
 import com.coiglesia.app.distritos.DistritosActivity
 import com.coiglesia.app.congregaciones.CongregacionesActivity
+import com.coiglesia.app.obras.ObrasActivity
 
 class MainActivity : Activity() {
 
@@ -22,6 +23,7 @@ class MainActivity : Activity() {
     private val modules = listOf(
         "Distritos",
         "Congregaciones",
+        "Obras en Proyección",
         "Personas y miembros",
         "Pastores",
         "Comités",
@@ -205,6 +207,22 @@ class MainActivity : Activity() {
                             )
                             intent.putExtra(
                                 CongregacionesActivity.EXTRA_TOKEN,
+                                token
+                            )
+                            startActivity(intent)
+                        }
+                    } else if (name == "Obras en Proyección") {
+                        val token = sessionToken
+
+                        if (token.isNullOrBlank()) {
+                            showLogin()
+                        } else {
+                            val intent = Intent(
+                                this@MainActivity,
+                                ObrasActivity::class.java
+                            )
+                            intent.putExtra(
+                                ObrasActivity.EXTRA_TOKEN,
                                 token
                             )
                             startActivity(intent)
