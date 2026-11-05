@@ -87,16 +87,6 @@ class NotificacionesActivity : Activity() {
         contenido.addView(selectorDistrito)
         contenido.addView(actualizar)
 
-        val verificarSeguridad = Button(this).apply {
-            text = "Verificar seguridad territorial"
-            isAllCaps = false
-            setOnClickListener {
-                probarSeguridadTerritorial()
-            }
-        }
-
-        contenido.addView(verificarSeguridad)
-
         contenido.addView(mensaje)
         contenido.addView(resumen)
         contenido.addView(lista)
@@ -161,55 +151,6 @@ class NotificacionesActivity : Activity() {
 
 
 
-
-    private fun probarSeguridadTerritorial() {
-        mensaje.text = "Probando seguridad en Supabase..."
-
-        Thread {
-            val distritosResultado =
-                DistritosService.listarAutorizados(token)
-
-            val distrito01 = distritosResultado.datos
-                .orEmpty()
-                .firstOrNull { it.codigo == "PRUEBA01" }
-
-            val resultado01 = distrito01?.let {
-                NotificacionesService.listar(token, it.id)
-            }
-
-            val resultado02 = NotificacionesService.listar(
-                token,
-                "17e376e8-8f00-4e9e-9e22-35c96113b449"
-            )
-
-            val mensajeFinal = when {
-                !distritosResultado.correcto ->
-                    "ERROR: No se pudieron consultar los distritos."
-
-                resultado01?.correcto != true ->
-                    "ERROR: PRUEBA01 no permitio la consulta."
-
-                resultado02.correcto ->
-                    "ALERTA DE SEGURIDAD: Supabase permitio " +
-                    "consultar PRUEBA02 sin autorizacion."
-
-                resultado02.mensaje ==
-                    "No tiene autorizacion para consultar este distrito" ->
-                    "SEGURIDAD CORRECTA: PRUEBA01 autorizado. " +
-                    "PRUEBA02 rechazado por Supabase."
-
-                else ->
-                    "PRUEBA01 autorizado. PRUEBA02 no se pudo " +
-                    "consultar: ${resultado02.mensaje}"
-            }
-
-            runOnUiThread {
-                if (!isFinishing && !isDestroyed) {
-                    mensaje.text = mensajeFinal
-                }
-            }
-        }.start()
-    }
 
     private fun cargarDistritos() {
         actualizar.isEnabled = false
