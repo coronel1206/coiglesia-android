@@ -1,5 +1,6 @@
 package com.coiglesia.app
 
+import com.coiglesia.app.notificaciones.NotificacionesActivity
 import android.app.Activity
 import android.content.Intent
 import android.os.Bundle
@@ -24,6 +25,7 @@ class MainActivity : Activity() {
         "Distritos",
         "Congregaciones",
         "Obras en Proyección",
+        "Notificaciones Distritales",
         "Personas y miembros",
         "Pastores",
         "Comités",
@@ -223,6 +225,21 @@ class MainActivity : Activity() {
                             )
                             intent.putExtra(
                                 ObrasActivity.EXTRA_TOKEN,
+                                token
+                            )
+                            startActivity(intent)
+                        }
+                    } else if (name == "Notificaciones Distritales") {
+                        val token = sessionToken
+                        if (token.isNullOrBlank()) {
+                            showLogin()
+                        } else {
+                            val intent = Intent(
+                                this@MainActivity,
+                                NotificacionesActivity::class.java
+                            )
+                            intent.putExtra(
+                                NotificacionesActivity.EXTRA_TOKEN,
                                 token
                             )
                             startActivity(intent)
