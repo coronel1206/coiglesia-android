@@ -1,6 +1,7 @@
 package com.coiglesia.app
 
 import android.app.Activity
+import android.content.Intent
 import android.os.Bundle
 import android.graphics.Color
 import android.view.Gravity
@@ -11,8 +12,11 @@ import android.widget.ScrollView
 import android.widget.TextView
 import com.coiglesia.app.auth.SupabaseAuth
 import com.coiglesia.app.auth.AccessVerifier
+import com.coiglesia.app.distritos.DistritosActivity
 
 class MainActivity : Activity() {
+
+    private var sessionToken: String? = null
 
     private val modules = listOf(
         "Distritos",
@@ -118,6 +122,7 @@ class MainActivity : Activity() {
                     }
 
                     if (access.authorized) {
+                        sessionToken = login.accessToken
                         showMainMenu()
                     } else {
                         status.text = access.message
@@ -172,9 +177,26 @@ class MainActivity : Activity() {
                 text = name
                 isAllCaps = false
                 setOnClickListener {
-                    detail.text = "$name\n\n" +
-                        "Módulo preparado para la próxima fase. " +
-                        "Aún no almacena información."
+                    if (name == "Distritos") {
+                        val token = sessionToken
+                        if (token.isNullOrBlank()) {
+                            showLogin()
+                        } else {
+                            val intent = Intent(
+                                this@MainActivity,
+                                DistritosActivity::class.java
+                            )
+                            intent.putExtra(
+                                DistritosActivity.EXTRA_TOKEN,
+                                token
+                            )
+                            startActivity(intent)
+                        }
+                    } else {
+                        detail.text = "$name\n\n" +
+                            "Módulo preparado para la próxima fase. " +
+                            "Aún no almacena información."
+                    }
                 }
             }
             menu.addView(button)
@@ -186,6 +208,7 @@ class MainActivity : Activity() {
             text = "Cerrar sesión"
             isAllCaps = false
             setOnClickListener {
+                sessionToken = null
                 showLogin()
             }
         }
