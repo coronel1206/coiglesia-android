@@ -156,4 +156,171 @@ object PersonasService {
             )
         }
     }
+
+    fun registrar(
+        token: String,
+        congregacionId: String,
+        nombres: String,
+        apellidos: String,
+        tipoDocumento: String,
+        numeroDocumento: String,
+        telefono: String,
+        correo: String,
+        fechaNacimiento: String
+    ): Resultado<String> {
+
+        if (congregacionId.isBlank() ||
+            nombres.isBlank() ||
+            apellidos.isBlank()
+        ) {
+            return Resultado(
+                correcto = false,
+                mensaje = "Congregacion, nombres y apellidos son obligatorios"
+            )
+        }
+
+        if (tipoDocumento.isBlank() != numeroDocumento.isBlank()) {
+            return Resultado(
+                correcto = false,
+                mensaje = "Indique tipo y numero de documento"
+            )
+        }
+
+        return try {
+            val parametros = JSONObject()
+                .put("p_congregacion_id", congregacionId)
+                .put("p_nombres", nombres.trim())
+                .put("p_apellidos", apellidos.trim())
+                .put("p_tipo_documento",
+                    tipoDocumento.trim().ifBlank { null })
+                .put("p_numero_documento",
+                    numeroDocumento.trim().ifBlank { null })
+                .put("p_telefono",
+                    telefono.trim().ifBlank { null })
+                .put("p_correo_electronico",
+                    correo.trim().ifBlank { null })
+                .put("p_fecha_nacimiento",
+                    fechaNacimiento.trim().ifBlank { null })
+
+            val respuesta = solicitar(
+                "registrar_persona_app",
+                token,
+                parametros
+            )
+
+            Resultado(
+                correcto = true,
+                datos = respuesta.trim().trim('"'),
+                mensaje = "Persona registrada correctamente"
+            )
+        } catch (e: Exception) {
+            Resultado(
+                correcto = false,
+                mensaje = e.message ?: "Error al registrar persona"
+            )
+        }
+    }
+
+
+    data class DistritoRegistro(
+        val id: String,
+        val codigo: String,
+        val nombre: String
+    )
+
+    data class CongregacionRegistro(
+        val id: String,
+        val distritoId: String,
+        val codigo: String,
+        val nombre: String
+    )
+
+    fun listarDistritosRegistro(
+        token: String
+    ): Resultado<List<DistritoRegistro>> {
+        return try {
+            val respuesta = solicitar(
+                "listar_distritos_personas_app",
+                token,
+                JSONObject()
+            )
+
+            val arreglo = JSONArray(respuesta)
+            val distritos = mutableListOf<DistritoRegistro>()
+
+            for (i in 0 until arreglo.length()) {
+                val item = arreglo.getJSONObject(i)
+                distritos.add(
+                    DistritoRegistro(
+                        id = item.getString("id"),
+                        codigo = item.getString("codigo"),
+                        nombre = item.getString("nombre")
+                    )
+                )
+            }
+
+            Resultado(
+                correcto = true,
+                datos = distritos,
+                mensaje = "Distritos autorizados consultados"
+            )
+        } catch (e: Exception) {
+            Resultado(
+                correcto = false,
+                mensaje = e.message ?: "Error al consultar distritos"
+            )
+        }
+    }
+
+    fun listarCongregacionesRegistro(
+        token: String,
+        distritoId: String
+    ): Resultado<List<CongregacionRegistro>> {
+        if (distritoId.isBlank()) {
+            return Resultado(
+                correcto = false,
+                mensaje = "Seleccione un distrito"
+            )
+        }
+
+        return try {
+            val parametros = JSONObject()
+                .put("p_distrito_id", distritoId)
+
+            val respuesta = solicitar(
+                "listar_congregaciones_personas_app",
+                token,
+                parametros
+            )
+
+            val arreglo = JSONArray(respuesta)
+            val congregaciones =
+                mutableListOf<CongregacionRegistro>()
+
+            for (i in 0 until arreglo.length()) {
+                val item = arreglo.getJSONObject(i)
+                congregaciones.add(
+                    CongregacionRegistro(
+                        id = item.getString("id"),
+                        distritoId = item.getString("distrito_id"),
+                        codigo = item.getString("codigo"),
+                        nombre = item.getString("nombre")
+                    )
+                )
+            }
+
+            Resultado(
+                correcto = true,
+                datos = congregaciones,
+                mensaje = "Congregaciones autorizadas consultadas"
+            )
+        } catch (e: Exception) {
+            Resultado(
+                correcto = false,
+                mensaje = e.message
+                    ?: "Error al consultar congregaciones"
+            )
+        }
+    }
+
 }
