@@ -6,3 +6,9 @@ local.properties
 *.iml
 *.jks
 *.keystore
+
+# Configuracion local de Supabase
+/config/supabase.properties
+
+# Copias de seguridad
+*.bak
