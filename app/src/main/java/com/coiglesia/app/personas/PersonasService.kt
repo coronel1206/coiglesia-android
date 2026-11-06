@@ -398,4 +398,87 @@ object PersonasService {
         }
     }
 
+
+    data class Membresia(
+        val id: String,
+        val personaId: String,
+        val congregacionId: String,
+        val congregacionNombre: String,
+        val distritoId: String,
+        val distritoNombre: String,
+        val fechaIngreso: String,
+        val fechaSalida: String?,
+        val estado: String,
+        val observaciones: String?
+    )
+
+    fun listarMembresias(
+        token: String,
+        personaId: String
+    ): Resultado<List<Membresia>> {
+        if (personaId.isBlank()) {
+            return Resultado(
+                correcto = false,
+                mensaje = "Debe seleccionar una persona"
+            )
+        }
+
+        return try {
+            val parametros = JSONObject()
+                .put("p_persona_id", personaId)
+
+            val respuesta = solicitar(
+                "listar_membresias_persona_app",
+                token,
+                parametros
+            )
+
+            val arreglo = JSONArray(respuesta)
+            val membresias = mutableListOf<Membresia>()
+
+            fun JSONObject.textoOpcional(
+                campo: String
+            ): String? =
+                if (isNull(campo)) null
+                else optString(campo).ifBlank { null }
+
+            for (i in 0 until arreglo.length()) {
+                val item = arreglo.getJSONObject(i)
+
+                membresias.add(
+                    Membresia(
+                        id = item.getString("membresia_id"),
+                        personaId = item.getString("persona_id"),
+                        congregacionId =
+                            item.getString("congregacion_id"),
+                        congregacionNombre =
+                            item.getString("congregacion_nombre"),
+                        distritoId = item.getString("distrito_id"),
+                        distritoNombre =
+                            item.getString("distrito_nombre"),
+                        fechaIngreso =
+                            item.getString("fecha_ingreso"),
+                        fechaSalida =
+                            item.textoOpcional("fecha_salida"),
+                        estado = item.getString("estado"),
+                        observaciones =
+                            item.textoOpcional("observaciones")
+                    )
+                )
+            }
+
+            Resultado(
+                correcto = true,
+                datos = membresias,
+                mensaje = "Membresias consultadas correctamente"
+            )
+        } catch (e: Exception) {
+            Resultado(
+                correcto = false,
+                mensaje = e.message
+                    ?: "Error al consultar membresias"
+            )
+        }
+    }
+
 }

@@ -35,6 +35,10 @@ class PersonasActivity : Activity() {
 
     private var personaSeleccionada: PersonasService.Persona? = null
 
+    private lateinit var panelHistorialMembresias: LinearLayout
+    private lateinit var tituloHistorialMembresias: TextView
+    private lateinit var contenidoHistorialMembresias: LinearLayout
+
     private lateinit var formularioEdicion: LinearLayout
     private lateinit var campoEditarNombres: EditText
     private lateinit var campoEditarApellidos: EditText
@@ -442,6 +446,41 @@ class PersonasActivity : Activity() {
         })
 
         root.addView(formularioEdicion)
+
+        panelHistorialMembresias = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            visibility = android.view.View.GONE
+            setPadding(0, 16, 0, 16)
+        }
+
+        tituloHistorialMembresias = TextView(this).apply {
+            text = "Historial de membresías"
+            textSize = 20f
+            setTextColor(Color.rgb(25, 51, 86))
+        }
+
+        panelHistorialMembresias.addView(
+            tituloHistorialMembresias
+        )
+
+        contenidoHistorialMembresias = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+        }
+
+        panelHistorialMembresias.addView(
+            contenidoHistorialMembresias
+        )
+
+        panelHistorialMembresias.addView(Button(this).apply {
+            text = "Cerrar historial"
+            isAllCaps = false
+            setOnClickListener {
+                panelHistorialMembresias.visibility =
+                    android.view.View.GONE
+            }
+        })
+
+        root.addView(panelHistorialMembresias)
         root.addView(mensaje)
         root.addView(
             scroll,
@@ -801,6 +840,89 @@ class PersonasActivity : Activity() {
                     }
 
                     lista.addView(botonEditar)
+
+                    val botonHistorial = Button(this).apply {
+                        text = "Ver historial"
+                        isAllCaps = false
+
+                        setOnClickListener {
+                            val personaId = persona.id
+
+                            panelHistorialMembresias.visibility =
+                                android.view.View.VISIBLE
+
+                            tituloHistorialMembresias.text =
+                                "Historial: ${persona.nombres} ${persona.apellidos}"
+
+                            tituloHistorialMembresias.tag = personaId
+                            contenidoHistorialMembresias.removeAllViews()
+
+                            contenidoHistorialMembresias.addView(
+                                TextView(this@PersonasActivity).apply {
+                                    text = "Consultando membresías..."
+                                    textSize = 16f
+                                }
+                            )
+
+                            Thread {
+                                val resultado =
+                                    PersonasService.listarMembresias(
+                                        token,
+                                        personaId
+                                    )
+
+                                runOnUiThread {
+                                    if (tituloHistorialMembresias.tag != personaId) {
+                                        return@runOnUiThread
+                                    }
+
+                                    contenidoHistorialMembresias.removeAllViews()
+
+                                    if (!resultado.correcto) {
+                                        contenidoHistorialMembresias.addView(
+                                            TextView(this@PersonasActivity).apply {
+                                                text = resultado.mensaje
+                                                textSize = 16f
+                                            }
+                                        )
+                                    } else {
+                                        val membresias =
+                                            resultado.datos.orEmpty()
+
+                                        if (membresias.isEmpty()) {
+                                            contenidoHistorialMembresias.addView(
+                                                TextView(this@PersonasActivity).apply {
+                                                    text = "No hay membresías disponibles"
+                                                    textSize = 16f
+                                                }
+                                            )
+                                        }
+
+                                        membresias.forEach { membresia ->
+                                            val detalle = """
+                                                Congregación: ${membresia.congregacionNombre}
+                                                Distrito: ${membresia.distritoNombre}
+                                                Ingreso: ${membresia.fechaIngreso}
+                                                Salida: ${membresia.fechaSalida ?: "Sin registrar"}
+                                                Estado: ${membresia.estado}
+                                                Observaciones: ${membresia.observaciones ?: "Sin observaciones"}
+                                            """.trimIndent()
+
+                                            contenidoHistorialMembresias.addView(
+                                                TextView(this@PersonasActivity).apply {
+                                                    text = detalle
+                                                    textSize = 15f
+                                                    setPadding(0, 12, 0, 16)
+                                                }
+                                            )
+                                        }
+                                    }
+                                }
+                            }.start()
+                        }
+                    }
+
+                    lista.addView(botonHistorial)
                 }
             }
         }.start()
