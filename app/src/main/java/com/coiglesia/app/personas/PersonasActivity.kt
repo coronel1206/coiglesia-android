@@ -33,6 +33,17 @@ class PersonasActivity : Activity() {
     private var token = ""
     private var solicitudLista = 0
 
+    private var personaSeleccionada: PersonasService.Persona? = null
+
+    private lateinit var formularioEdicion: LinearLayout
+    private lateinit var campoEditarNombres: EditText
+    private lateinit var campoEditarApellidos: EditText
+    private lateinit var campoEditarTipoDocumento: Spinner
+    private lateinit var campoEditarNumeroDocumento: EditText
+    private lateinit var campoEditarTelefono: EditText
+    private lateinit var campoEditarCorreo: EditText
+    private lateinit var campoEditarFechaNacimiento: EditText
+
     private var distritosRegistro =
         emptyList<PersonasService.DistritoRegistro>()
     private var solicitudDistritos = 0
@@ -236,6 +247,201 @@ class PersonasActivity : Activity() {
         root.addView(botonRegistro)
         root.addView(formulario)
         root.addView(actualizar)
+        formularioEdicion = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            visibility = android.view.View.GONE
+            setPadding(0, 12, 0, 12)
+        }
+
+        formularioEdicion.addView(TextView(this).apply {
+            text = "Editar información personal"
+            textSize = 20f
+            setTextColor(Color.rgb(25, 51, 86))
+        })
+
+        fun campoEdicion(
+            etiqueta: String,
+            tipo: Int = android.text.InputType.TYPE_CLASS_TEXT
+        ): EditText {
+            formularioEdicion.addView(TextView(this).apply {
+                text = etiqueta
+                textSize = 16f
+                setPadding(0, 10, 0, 4)
+            })
+
+            return EditText(this).apply {
+                inputType = tipo
+                isSingleLine = true
+                formularioEdicion.addView(this)
+            }
+        }
+
+        campoEditarNombres = campoEdicion("Nombres *")
+        campoEditarApellidos = campoEdicion("Apellidos *")
+
+        formularioEdicion.addView(TextView(this).apply {
+            text = "Tipo de documento"
+            textSize = 16f
+        })
+
+        campoEditarTipoDocumento = Spinner(this).apply {
+            adapter = ArrayAdapter(
+                this@PersonasActivity,
+                android.R.layout.simple_spinner_dropdown_item,
+                listOf(
+                    "Sin documento", "CC", "TI",
+                    "RC", "CE", "Pasaporte"
+                )
+            )
+        }
+        formularioEdicion.addView(campoEditarTipoDocumento)
+
+        campoEditarNumeroDocumento =
+            campoEdicion("Número de documento")
+
+        campoEditarTelefono = campoEdicion(
+            "Teléfono",
+            android.text.InputType.TYPE_CLASS_PHONE
+        )
+
+        campoEditarCorreo = campoEdicion(
+            "Correo electrónico",
+            android.text.InputType.TYPE_CLASS_TEXT or
+                android.text.InputType.TYPE_TEXT_VARIATION_EMAIL_ADDRESS
+        )
+
+        campoEditarFechaNacimiento = campoEdicion(
+            "Fecha de nacimiento (AAAA-MM-DD)",
+            android.text.InputType.TYPE_CLASS_DATETIME or
+                android.text.InputType.TYPE_DATETIME_VARIATION_DATE
+        )
+
+        formularioEdicion.addView(Button(this).apply {
+            text = "Guardar cambios"
+            isAllCaps = false
+
+            setOnClickListener {
+                val persona = personaSeleccionada
+
+                if (persona == null) {
+                    Toast.makeText(
+                        this@PersonasActivity,
+                        "Seleccione una persona",
+                        Toast.LENGTH_SHORT
+                    ).show()
+                    return@setOnClickListener
+                }
+
+                val nombres =
+                    campoEditarNombres.text.toString().trim()
+                val apellidos =
+                    campoEditarApellidos.text.toString().trim()
+
+                val tipoDocumento =
+                    if (campoEditarTipoDocumento.selectedItemPosition == 0)
+                        ""
+                    else
+                        campoEditarTipoDocumento.selectedItem.toString()
+
+                val numeroDocumento =
+                    campoEditarNumeroDocumento.text.toString().trim()
+                val telefono =
+                    campoEditarTelefono.text.toString().trim()
+                val correo =
+                    campoEditarCorreo.text.toString().trim()
+                val fecha =
+                    campoEditarFechaNacimiento.text.toString().trim()
+
+                if (nombres.isBlank() || apellidos.isBlank()) {
+                    Toast.makeText(
+                        this@PersonasActivity,
+                        "Nombres y apellidos son obligatorios",
+                        Toast.LENGTH_LONG
+                    ).show()
+                    return@setOnClickListener
+                }
+
+                if (tipoDocumento.isBlank() != numeroDocumento.isBlank()) {
+                    Toast.makeText(
+                        this@PersonasActivity,
+                        "Indique tipo y numero de documento",
+                        Toast.LENGTH_LONG
+                    ).show()
+                    return@setOnClickListener
+                }
+
+                if (fecha.isNotBlank()) {
+                    try {
+                        val formato = java.text.SimpleDateFormat(
+                            "yyyy-MM-dd",
+                            java.util.Locale.US
+                        )
+                        formato.isLenient = false
+                        formato.parse(fecha)
+                            ?: throw IllegalArgumentException()
+                    } catch (e: Exception) {
+                        Toast.makeText(
+                            this@PersonasActivity,
+                            "Fecha invalida. Use AAAA-MM-DD",
+                            Toast.LENGTH_LONG
+                        ).show()
+                        return@setOnClickListener
+                    }
+                }
+
+                isEnabled = false
+                val botonGuardar = this
+
+                Thread {
+                    val resultado = PersonasService.actualizar(
+                        token,
+                        persona.id,
+                        nombres,
+                        apellidos,
+                        tipoDocumento,
+                        numeroDocumento,
+                        telefono,
+                        correo,
+                        fecha
+                    )
+
+                    runOnUiThread {
+                        botonGuardar.isEnabled = true
+
+                        if (resultado.correcto) {
+                            personaSeleccionada = null
+                            formularioEdicion.visibility =
+                                android.view.View.GONE
+
+                            Toast.makeText(
+                                this@PersonasActivity,
+                                "Datos actualizados correctamente",
+                                Toast.LENGTH_LONG
+                            ).show()
+
+                            cargarPersonas()
+                        } else {
+                            Toast.makeText(
+                                this@PersonasActivity,
+                                resultado.mensaje,
+                                Toast.LENGTH_LONG
+                            ).show()
+                        }
+                    }
+                }.start()
+            }
+        })
+
+        formularioEdicion.addView(Button(this).apply {
+            text = "Cancelar edición"
+            isAllCaps = false
+            setOnClickListener {
+                personaSeleccionada = null
+                formularioEdicion.visibility = android.view.View.GONE
+            }
+        })
+
+        root.addView(formularioEdicion)
         root.addView(mensaje)
         root.addView(
             scroll,
@@ -539,6 +745,62 @@ class PersonasActivity : Activity() {
                     }
 
                     lista.addView(item)
+
+                    val botonEditar = Button(this).apply {
+                        text = "Editar datos"
+                        isAllCaps = false
+
+                        setOnClickListener {
+                            personaSeleccionada = persona
+
+                            campoEditarNombres.setText(persona.nombres)
+                            campoEditarApellidos.setText(persona.apellidos)
+
+                            val tipos = listOf(
+                                "", "CC", "TI", "RC", "CE", "Pasaporte"
+                            )
+
+                            val tipoActual =
+                                persona.tipoDocumento.orEmpty()
+
+                            val indiceTipo = tipos.indexOfFirst {
+                                it.equals(tipoActual, ignoreCase = true)
+                            }
+
+                            campoEditarTipoDocumento.setSelection(
+                                if (indiceTipo >= 0) indiceTipo else 0
+                            )
+
+                            campoEditarNumeroDocumento.setText(
+                                persona.numeroDocumento.orEmpty()
+                            )
+
+                            campoEditarTelefono.setText(
+                                persona.telefono.orEmpty()
+                            )
+
+                            campoEditarCorreo.setText(
+                                persona.correoElectronico.orEmpty()
+                            )
+
+                            campoEditarFechaNacimiento.setText(
+                                persona.fechaNacimiento.orEmpty()
+                            )
+
+                            formularioEdicion.visibility =
+                                android.view.View.VISIBLE
+
+                            Toast.makeText(
+                                this@PersonasActivity,
+                                "Persona seleccionada: " +
+                                    persona.nombres + " " +
+                                    persona.apellidos,
+                                Toast.LENGTH_SHORT
+                            ).show()
+                        }
+                    }
+
+                    lista.addView(botonEditar)
                 }
             }
         }.start()
