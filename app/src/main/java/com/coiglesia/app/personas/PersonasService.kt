@@ -81,21 +81,23 @@ object PersonasService {
 
             if (status !in 200..299) {
                 val detalle = try {
-                    JSONObject(respuesta).optString("message")
+                    val json = JSONObject(respuesta)
+                    listOf(
+                        json.optString("message"),
+                        json.optString("details"),
+                        json.optString("hint"),
+                        json.optString("code")
+                    ).filter {
+                        it.isNotBlank() && it != "null"
+                    }.joinToString("\n")
                 } catch (_: Exception) {
-                    ""
+                    respuesta
                 }
 
                 throw IllegalStateException(
-                    when {
-                        status == 401 || status == 403 ->
-                            "Acceso no autorizado"
-                        status >= 500 ->
-                            "Error del servidor"
-                        detalle.contains("permiso", true) ->
-                            "No tiene permisos para esta operacion"
-                        else ->
-                            "No fue posible completar la solicitud"
+                    "Error HTTP $status al ejecutar $funcion:\n" +
+                    detalle.ifBlank {
+                        "Supabase no devolvio detalles"
                     }
                 )
             }
