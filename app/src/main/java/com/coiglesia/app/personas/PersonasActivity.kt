@@ -36,6 +36,12 @@ class PersonasActivity : Activity() {
     private var personaSeleccionada: PersonasService.Persona? = null
 
     private lateinit var panelHistorialMembresias: LinearLayout
+
+    private lateinit var panelFinalizarMembresia: LinearLayout
+    private lateinit var tituloFinalizarMembresia: TextView
+    private lateinit var campoFechaSalidaMembresia: EditText
+    private lateinit var campoObservacionesSalida: EditText
+    private var membresiaSeleccionadaId: String? = null
     private lateinit var tituloHistorialMembresias: TextView
     private lateinit var contenidoHistorialMembresias: LinearLayout
 
@@ -481,6 +487,155 @@ class PersonasActivity : Activity() {
         })
 
         root.addView(panelHistorialMembresias)
+
+        panelFinalizarMembresia = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            visibility = android.view.View.GONE
+            setPadding(0, 16, 0, 16)
+        }
+
+        tituloFinalizarMembresia = TextView(this).apply {
+            text = "Finalizar membresía"
+            textSize = 20f
+            setTextColor(Color.rgb(140, 40, 40))
+        }
+
+        panelFinalizarMembresia.addView(
+            tituloFinalizarMembresia
+        )
+
+        panelFinalizarMembresia.addView(TextView(this).apply {
+            text = "Fecha de salida (AAAA-MM-DD)"
+            textSize = 16f
+        })
+
+        campoFechaSalidaMembresia = EditText(this).apply {
+            hint = "Dejar vacío para usar la fecha actual"
+            inputType =
+                android.text.InputType.TYPE_CLASS_DATETIME or
+                android.text.InputType.TYPE_DATETIME_VARIATION_DATE
+            isSingleLine = true
+        }
+
+        panelFinalizarMembresia.addView(
+            campoFechaSalidaMembresia
+        )
+
+        panelFinalizarMembresia.addView(TextView(this).apply {
+            text = "Observaciones de salida"
+            textSize = 16f
+        })
+
+        campoObservacionesSalida = EditText(this).apply {
+            hint = "Motivo u observaciones"
+            minLines = 3
+            maxLines = 5
+            inputType =
+                android.text.InputType.TYPE_CLASS_TEXT or
+                android.text.InputType.TYPE_TEXT_FLAG_MULTI_LINE
+        }
+
+        panelFinalizarMembresia.addView(
+            campoObservacionesSalida
+        )
+
+
+        panelFinalizarMembresia.addView(Button(this).apply {
+            text = "Confirmar finalización"
+            isAllCaps = false
+
+            setOnClickListener {
+                val membresiaId = membresiaSeleccionadaId
+
+                if (membresiaId.isNullOrBlank()) {
+                    Toast.makeText(
+                        this@PersonasActivity,
+                        "Seleccione una membresía",
+                        Toast.LENGTH_SHORT
+                    ).show()
+                    return@setOnClickListener
+                }
+
+                val fecha =
+                    campoFechaSalidaMembresia.text.toString().trim()
+
+                val observaciones =
+                    campoObservacionesSalida.text.toString().trim()
+
+                if (observaciones.length > 2000) {
+                    Toast.makeText(
+                        this@PersonasActivity,
+                        "Las observaciones superan 2000 caracteres",
+                        Toast.LENGTH_LONG
+                    ).show()
+                    return@setOnClickListener
+                }
+
+                android.app.AlertDialog.Builder(this@PersonasActivity)
+                    .setTitle("¿Finalizar membresía?")
+                    .setMessage(
+                        "La persona dejará de tener una membresía activa " +
+                        "en esta congregación. Su historial se conservará. " +
+                        "¿Desea continuar?"
+                    )
+                    .setNegativeButton("Cancelar", null)
+                    .setPositiveButton("Sí, finalizar") { _, _ ->
+                        isEnabled = false
+                        val botonConfirmar = this
+
+                        Thread {
+                            val resultado =
+                                PersonasService.finalizarMembresia(
+                                    token,
+                                    membresiaId,
+                                    fecha,
+                                    observaciones
+                                )
+
+                            runOnUiThread {
+                                botonConfirmar.isEnabled = true
+
+                                if (resultado.correcto) {
+                                    membresiaSeleccionadaId = null
+
+                                    panelFinalizarMembresia.visibility =
+                                        android.view.View.GONE
+
+                                    panelHistorialMembresias.visibility =
+                                        android.view.View.GONE
+
+                                    Toast.makeText(
+                                        this@PersonasActivity,
+                                        "Membresía finalizada correctamente",
+                                        Toast.LENGTH_LONG
+                                    ).show()
+
+                                    cargarPersonas()
+                                } else {
+                                    Toast.makeText(
+                                        this@PersonasActivity,
+                                        resultado.mensaje,
+                                        Toast.LENGTH_LONG
+                                    ).show()
+                                }
+                            }
+                        }.start()
+                    }
+                    .show()
+            }
+        })
+
+        panelFinalizarMembresia.addView(Button(this).apply {
+            text = "Cancelar finalización"
+            isAllCaps = false
+            setOnClickListener {
+                membresiaSeleccionadaId = null
+                panelFinalizarMembresia.visibility =
+                    android.view.View.GONE
+            }
+        })
+
+        root.addView(panelFinalizarMembresia)
         root.addView(mensaje)
         root.addView(
             scroll,
@@ -915,6 +1070,35 @@ class PersonasActivity : Activity() {
                                                     setPadding(0, 12, 0, 16)
                                                 }
                                             )
+
+                                            if (membresia.estado == "activa") {
+                                                val botonPreparar = Button(
+                                                    this@PersonasActivity
+                                                ).apply {
+                                                    text = "Preparar finalización"
+                                                    isAllCaps = false
+
+                                                    setOnClickListener {
+                                                        membresiaSeleccionadaId =
+                                                            membresia.id
+
+                                                        tituloFinalizarMembresia.text =
+                                                            "Finalizar membresía: " +
+                                                            membresia.congregacionNombre
+
+                                                        campoFechaSalidaMembresia.setText("")
+                                                        campoObservacionesSalida.setText("")
+
+                                                        panelFinalizarMembresia.visibility =
+                                                            android.view.View.VISIBLE
+                                                    }
+                                                }
+
+                                                contenidoHistorialMembresias.addView(
+                                                    botonPreparar
+                                                )
+                                            }
+
                                         }
                                     }
                                 }

@@ -481,4 +481,80 @@ object PersonasService {
         }
     }
 
+
+    fun finalizarMembresia(
+        token: String,
+        membresiaId: String,
+        fechaSalida: String,
+        observaciones: String
+    ): Resultado<String> {
+
+        if (membresiaId.isBlank()) {
+            return Resultado(
+                correcto = false,
+                mensaje = "Debe seleccionar una membresia"
+            )
+        }
+
+        if (observaciones.length > 2000) {
+            return Resultado(
+                correcto = false,
+                mensaje = "Las observaciones superan 2000 caracteres"
+            )
+        }
+
+        if (fechaSalida.isNotBlank()) {
+            try {
+                val formato = java.text.SimpleDateFormat(
+                    "yyyy-MM-dd",
+                    java.util.Locale.US
+                )
+                formato.isLenient = false
+
+                val fecha = formato.parse(fechaSalida)
+                    ?: throw IllegalArgumentException()
+
+                if (formato.format(fecha) != fechaSalida) {
+                    throw IllegalArgumentException()
+                }
+            } catch (e: Exception) {
+                return Resultado(
+                    correcto = false,
+                    mensaje = "Fecha invalida. Use AAAA-MM-DD"
+                )
+            }
+        }
+
+        return try {
+            val parametros = JSONObject()
+                .put("p_membresia_id", membresiaId)
+                .put(
+                    "p_fecha_salida",
+                    fechaSalida.trim().ifBlank { null }
+                )
+                .put(
+                    "p_observaciones",
+                    observaciones.trim().ifBlank { null }
+                )
+
+            val respuesta = solicitar(
+                "finalizar_membresia_app",
+                token,
+                parametros
+            )
+
+            Resultado(
+                correcto = true,
+                datos = respuesta.trim().trim('"'),
+                mensaje = "Membresia finalizada correctamente"
+            )
+        } catch (e: Exception) {
+            Resultado(
+                correcto = false,
+                mensaje = e.message
+                    ?: "Error al finalizar la membresia"
+            )
+        }
+    }
+
 }
