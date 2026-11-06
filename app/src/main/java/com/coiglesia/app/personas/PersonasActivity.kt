@@ -940,6 +940,58 @@ class PersonasActivity : Activity() {
 
                     lista.addView(item)
 
+                    val estadoMembresia = TextView(this).apply {
+                        text = "Estado de membresía: consultando..."
+                        textSize = 14f
+                        setPadding(12, 4, 12, 10)
+                        setTextColor(Color.DKGRAY)
+                    }
+
+                    lista.addView(estadoMembresia)
+
+                    Thread {
+                        val consulta =
+                            PersonasService.listarMembresias(
+                                token,
+                                persona.id
+                            )
+
+                        runOnUiThread {
+                            if (isFinishing || isDestroyed) {
+                                return@runOnUiThread
+                            }
+
+                            if (!consulta.correcto) {
+                                estadoMembresia.text =
+                                    "Estado de membresía: no disponible"
+                                return@runOnUiThread
+                            }
+
+                            val membresias = consulta.datos.orEmpty()
+
+                            val tieneActiva = membresias.any {
+                                it.estado.equals(
+                                    "activa",
+                                    ignoreCase = true
+                                )
+                            }
+
+                            estadoMembresia.text = if (tieneActiva) {
+                                "MEMBRESÍA ACTIVA"
+                            } else {
+                                "SIN MEMBRESÍA ACTIVA · HISTORIAL DISPONIBLE"
+                            }
+
+                            estadoMembresia.setTextColor(
+                                if (tieneActiva) {
+                                    Color.rgb(30, 125, 65)
+                                } else {
+                                    Color.rgb(160, 90, 35)
+                                }
+                            )
+                        }
+                    }.start()
+
                     val botonEditar = Button(this).apply {
                         text = "Editar datos"
                         isAllCaps = false
