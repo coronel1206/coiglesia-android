@@ -557,4 +557,57 @@ object PersonasService {
         }
     }
 
+
+    fun registrarMembresia(
+        token: String,
+        personaId: String,
+        congregacionId: String,
+        fechaIngreso: String,
+        observaciones: String
+    ): Resultado<String> {
+
+        if (personaId.isBlank() || congregacionId.isBlank()) {
+            return Resultado(
+                correcto = false,
+                mensaje = "Seleccione una persona y una congregacion"
+            )
+        }
+
+        if (fechaIngreso.isBlank()) {
+            return Resultado(
+                correcto = false,
+                mensaje = "La fecha de ingreso es obligatoria"
+            )
+        }
+
+        return try {
+            val parametros = JSONObject()
+                .put("p_persona_id", personaId)
+                .put("p_congregacion_id", congregacionId)
+                .put("p_fecha_ingreso", fechaIngreso.trim())
+                .put(
+                    "p_observaciones",
+                    observaciones.trim().ifBlank { JSONObject.NULL }
+                )
+
+            val respuesta = solicitar(
+                "registrar_membresia_app",
+                token,
+                parametros
+            )
+
+            Resultado(
+                correcto = true,
+                datos = respuesta.trim().trim('"'),
+                mensaje = "Nueva membresia registrada correctamente"
+            )
+        } catch (e: Exception) {
+            Resultado(
+                correcto = false,
+                mensaje = e.message
+                    ?: "Error al registrar la nueva membresia"
+            )
+        }
+    }
+
 }

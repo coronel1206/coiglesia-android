@@ -257,6 +257,7 @@ class PersonasActivity : Activity() {
         root.addView(botonRegistro)
         root.addView(formulario)
         root.addView(actualizar)
+        crearPanelNuevaMembresia(root)
         formularioEdicion = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             visibility = android.view.View.GONE
@@ -676,6 +677,436 @@ class PersonasActivity : Activity() {
 
         cargarPersonas()
         cargarDistritosRegistro()
+    }
+
+
+    private fun crearPanelNuevaMembresia(root: LinearLayout) {
+
+        val botonAbrir = Button(this).apply {
+            text = "Nueva membresía / Traslado"
+            isAllCaps = false
+        }
+
+        val panel = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            visibility = View.GONE
+            setPadding(8, 12, 8, 12)
+        }
+
+        fun etiqueta(texto: String) {
+            panel.addView(TextView(this).apply {
+                text = texto
+                textSize = 15f
+                setPadding(0, 10, 0, 4)
+            })
+        }
+
+        val buscar = EditText(this).apply {
+            hint = "Buscar por nombre, apellido o documento"
+            isSingleLine = true
+        }
+
+        etiqueta("Buscar persona existente")
+        panel.addView(buscar)
+
+        val selectorPersona = Spinner(this)
+        panel.addView(selectorPersona)
+
+        etiqueta("Distrito de destino")
+        val distrito = Spinner(this)
+        panel.addView(distrito)
+
+        etiqueta("Congregación de destino")
+        val congregacion = Spinner(this)
+        panel.addView(congregacion)
+
+        etiqueta("Fecha de ingreso")
+        val fecha = EditText(this).apply {
+            hint = "AAAA-MM-DD"
+            isSingleLine = true
+            setText(
+                java.text.SimpleDateFormat(
+                    "yyyy-MM-dd",
+                    java.util.Locale.US
+                ).format(java.util.Date())
+            )
+        }
+        panel.addView(fecha)
+
+        etiqueta("Observaciones")
+        val observaciones = EditText(this).apply {
+            hint = "Información del traslado (opcional)"
+            minLines = 2
+            maxLines = 4
+            inputType = android.text.InputType.TYPE_CLASS_TEXT or
+                android.text.InputType.TYPE_TEXT_FLAG_MULTI_LINE
+        }
+        panel.addView(observaciones)
+
+        val estado = TextView(this).apply {
+            text = "Consultando información..."
+            textSize = 14f
+            setPadding(0, 10, 0, 10)
+        }
+        panel.addView(estado)
+
+        val botonGuardar = Button(this).apply {
+            text = "Registrar nueva membresía"
+            isAllCaps = false
+        }
+        panel.addView(botonGuardar)
+
+        val botonCerrar = Button(this).apply {
+            text = "Cerrar"
+            isAllCaps = false
+            setOnClickListener {
+                panel.visibility = View.GONE
+                botonAbrir.text = "Nueva membresía / Traslado"
+            }
+        }
+        panel.addView(botonCerrar)
+
+        root.addView(botonAbrir)
+        root.addView(panel)
+
+        var personasDisponibles =
+            emptyList<PersonasService.Persona>()
+
+        var personasFiltradas =
+            emptyList<PersonasService.Persona>()
+
+        var distritos =
+            emptyList<PersonasService.DistritoRegistro>()
+
+        var congregaciones =
+            emptyList<PersonasService.CongregacionRegistro>()
+
+        var personaElegida: PersonasService.Persona? = null
+
+        var solicitudDestino = 0
+
+        selectorPersona.adapter = ArrayAdapter(
+            this,
+            android.R.layout.simple_spinner_dropdown_item,
+            listOf("Cargando personas...")
+        )
+
+        distrito.adapter = ArrayAdapter(
+            this,
+            android.R.layout.simple_spinner_dropdown_item,
+            listOf("Seleccione un distrito")
+        )
+
+        congregacion.adapter = ArrayAdapter(
+            this,
+            android.R.layout.simple_spinner_dropdown_item,
+            listOf("Seleccione una congregación")
+        )
+
+        botonAbrir.setOnClickListener {
+            val abrir = panel.visibility != View.VISIBLE
+
+            panel.visibility = if (abrir) View.VISIBLE else View.GONE
+
+            botonAbrir.text = if (abrir) {
+                "Cerrar nuevas membresías"
+            } else {
+                "Nueva membresía / Traslado"
+            }
+        }
+
+        fun actualizarPersonas(filtro: String) {
+            personasFiltradas = personasDisponibles.filter { persona ->
+                val texto = (
+                    persona.nombres + " " +
+                    persona.apellidos + " " +
+                    persona.numeroDocumento
+                ).lowercase(java.util.Locale.ROOT)
+
+                texto.contains(filtro.lowercase(java.util.Locale.ROOT))
+            }
+
+            val opciones = mutableListOf("Seleccione una persona")
+
+            personasFiltradas.forEach { persona ->
+                opciones.add(
+                    "${persona.nombres} ${persona.apellidos} - " +
+                    if (persona.numeroDocumento.isBlank()) {
+                        "Sin documento"
+                    } else {
+                        persona.numeroDocumento
+                    }
+                )
+            }
+
+            selectorPersona.adapter = ArrayAdapter(
+                this,
+                android.R.layout.simple_spinner_dropdown_item,
+                opciones
+            )
+
+            selectorPersona.setSelection(0)
+            personaElegida = null
+        }
+
+        buscar.addTextChangedListener(
+            object : android.text.TextWatcher {
+                override fun beforeTextChanged(
+                    s: CharSequence?, start: Int, count: Int, after: Int
+                ) {}
+
+                override fun onTextChanged(
+                    s: CharSequence?, start: Int, before: Int, count: Int
+                ) {
+                    actualizarPersonas(s?.toString().orEmpty())
+                }
+
+                override fun afterTextChanged(
+                    s: android.text.Editable?
+                ) {}
+            }
+        )
+
+        selectorPersona.onItemSelectedListener =
+            object : android.widget.AdapterView.OnItemSelectedListener {
+                override fun onNothingSelected(
+                    parent: android.widget.AdapterView<*>?
+                ) {
+                    personaElegida = null
+                }
+
+                override fun onItemSelected(
+                    parent: android.widget.AdapterView<*>?,
+                    view: View?,
+                    position: Int,
+                    id: Long
+                ) {
+                    personaElegida =
+                        if (position > 0 &&
+                            position <= personasFiltradas.size
+                        ) {
+                            personasFiltradas[position - 1]
+                        } else {
+                            null
+                        }
+                }
+            }
+
+        fun cargarCongregaciones(distritoId: String) {
+            val solicitud = ++solicitudDestino
+
+            congregaciones = emptyList()
+
+            congregacion.isEnabled = false
+            congregacion.adapter = ArrayAdapter(
+                this,
+                android.R.layout.simple_spinner_dropdown_item,
+                listOf("Consultando congregaciones...")
+            )
+
+            Thread {
+                val resultado =
+                    PersonasService.listarCongregacionesRegistro(
+                        token,
+                        distritoId
+                    )
+
+                runOnUiThread {
+                    if (isFinishing || isDestroyed ||
+                        solicitud != solicitudDestino
+                    ) return@runOnUiThread
+
+                    if (!resultado.correcto) {
+                        estado.text = resultado.mensaje
+                        return@runOnUiThread
+                    }
+
+                    congregaciones = resultado.datos.orEmpty()
+
+                    val opciones = mutableListOf(
+                        "Seleccione una congregación"
+                    )
+
+                    congregaciones.forEach {
+                        opciones.add("${it.codigo} - ${it.nombre}")
+                    }
+
+                    congregacion.adapter = ArrayAdapter(
+                        this,
+                        android.R.layout.simple_spinner_dropdown_item,
+                        opciones
+                    )
+
+                    congregacion.isEnabled =
+                        congregaciones.isNotEmpty()
+
+                    estado.text = "Seleccione la congregación de destino"
+                }
+            }.start()
+        }
+
+        distrito.onItemSelectedListener =
+            object : android.widget.AdapterView.OnItemSelectedListener {
+                override fun onNothingSelected(
+                    parent: android.widget.AdapterView<*>?
+                ) {}
+
+                override fun onItemSelected(
+                    parent: android.widget.AdapterView<*>?,
+                    view: View?,
+                    position: Int,
+                    id: Long
+                ) {
+                    if (position <= 0 || position > distritos.size) {
+                        solicitudDestino++
+                        congregaciones = emptyList()
+                        congregacion.isEnabled = false
+                        congregacion.adapter = ArrayAdapter(
+                            this@PersonasActivity,
+                            android.R.layout.simple_spinner_dropdown_item,
+                            listOf("Seleccione una congregación")
+                        )
+                        return
+                    }
+
+                    cargarCongregaciones(distritos[position - 1].id)
+                }
+            }
+
+        botonGuardar.setOnClickListener {
+
+            val persona = personaElegida
+
+            if (persona == null) {
+                estado.text = "Seleccione una persona existente"
+                return@setOnClickListener
+            }
+
+            val posicion = congregacion.selectedItemPosition
+
+            if (posicion <= 0 || posicion > congregaciones.size) {
+                estado.text = "Seleccione una congregación autorizada"
+                return@setOnClickListener
+            }
+
+            val destino = congregaciones[posicion - 1]
+            val fechaIngreso = fecha.text.toString().trim()
+            val nota = observaciones.text.toString().trim()
+
+            if (nota.length > 2000) {
+                estado.text = "Las observaciones superan 2000 caracteres"
+                return@setOnClickListener
+            }
+
+            try {
+                val formato = java.text.SimpleDateFormat(
+                    "yyyy-MM-dd",
+                    java.util.Locale.US
+                ).apply { isLenient = false }
+
+                val validada = formato.parse(fechaIngreso)
+
+                if (validada == null ||
+                    formato.format(validada) != fechaIngreso
+                ) {
+                    throw IllegalArgumentException()
+                }
+            } catch (_: Exception) {
+                estado.text = "Fecha inválida. Use AAAA-MM-DD"
+                return@setOnClickListener
+            }
+
+            android.app.AlertDialog.Builder(this)
+                .setTitle("Confirmar nueva membresía")
+                .setMessage(
+                    "Persona: ${persona.nombres} ${persona.apellidos}\n" +
+                    "Destino: ${destino.nombre}\n" +
+                    "Fecha de ingreso: $fechaIngreso\n\n" +
+                    "¿Desea registrar esta nueva membresía?"
+                )
+                .setNegativeButton("Cancelar", null)
+                .setPositiveButton("Confirmar") { _, _ ->
+
+                    botonGuardar.isEnabled = false
+                    estado.text = "Registrando nueva membresía..."
+
+                    Thread {
+                        val resultado =
+                            PersonasService.registrarMembresia(
+                                token = token,
+                                personaId = persona.id,
+                                congregacionId = destino.id,
+                                fechaIngreso = fechaIngreso,
+                                observaciones = nota
+                            )
+
+                        runOnUiThread {
+                            if (isFinishing || isDestroyed) {
+                                return@runOnUiThread
+                            }
+
+                            botonGuardar.isEnabled = true
+                            estado.text = resultado.mensaje
+
+                            if (resultado.correcto) {
+                                observaciones.text.clear()
+
+                                Toast.makeText(
+                                    this,
+                                    "Nueva membresía registrada correctamente",
+                                    Toast.LENGTH_LONG
+                                ).show()
+
+                                cargarPersonas()
+                            }
+                        }
+                    }.start()
+                }
+                .show()
+        }
+
+        Thread {
+            val resultadoPersonas = PersonasService.listar(token)
+            val resultadoDistritos =
+                PersonasService.listarDistritosRegistro(token)
+
+            runOnUiThread {
+                if (isFinishing || isDestroyed) return@runOnUiThread
+
+                if (!resultadoPersonas.correcto) {
+                    estado.text = resultadoPersonas.mensaje
+                    return@runOnUiThread
+                }
+
+                personasDisponibles =
+                    resultadoPersonas.datos.orEmpty()
+
+                actualizarPersonas("")
+
+                if (!resultadoDistritos.correcto) {
+                    estado.text = resultadoDistritos.mensaje
+                    return@runOnUiThread
+                }
+
+                distritos = resultadoDistritos.datos.orEmpty()
+
+                val opciones = mutableListOf("Seleccione un distrito")
+
+                distritos.forEach {
+                    opciones.add("${it.codigo} - ${it.nombre}")
+                }
+
+                distrito.adapter = ArrayAdapter(
+                    this,
+                    android.R.layout.simple_spinner_dropdown_item,
+                    opciones
+                )
+
+                distrito.isEnabled = distritos.isNotEmpty()
+
+                estado.text = "Seleccione una persona y un destino"
+            }
+        }.start()
     }
 
     private fun cargarDistritosRegistro() {
