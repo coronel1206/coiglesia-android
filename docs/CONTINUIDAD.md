@@ -1,31 +1,33 @@
-# COIGLESIA — punto de continuidad COG-002A (análisis del manual)
+# COIGLESIA — punto de continuidad COG-003
 
-Trabajar por bloques: entregar, subir desde Termux, verificar GitHub Actions y continuar. No asumir persistencia de archivos temporales ni de la memoria del chat.
+Trabajar por bloques: desarrollar, probar, entregar para Termux, verificar publicación y Actions antes de continuar. No asumir que Work conserva archivos tras una interrupción.
 
-## Estado verificado
+## Historial publicado
 
-COG-001 publicado por el usuario en `3655d9138af0b00f788dde0a206a7c535b83a379`, rama `work/coiglesia-bloque-01`. GitHub Actions aprobado. Incluye traslados atómicos con origen esperado, membresías, administración inicial, resumen/CSV y edición territorial. El respaldo del avance de Termux se conserva en su rama separada; no mezclarlo de nuevo porque su funcionalidad ya está integrada.
+- COG-001: `3655d91`, traslados atómicos y origen esperado, administración inicial y edición territorial. Actions aprobado.
+- COG-002: `f672d6c`, equipos, actividades y participantes. Actions 42343104701 aprobado. El usuario confirmó instalación.
+- COG-002A: `6597945cdc6d7efd06a55861df775c05e92a7677`, análisis del manual IPUC de 2018 y requisitos de permisos/UX. No cambió Android ni producción.
 
-COG-002 añade las interfaces de ministerios, comités, músicos, eventos, asambleas y participantes. Ver `docs/BLOQUE_02.md`. Rama de entrega: `work/coiglesia-bloque-02`; comprobar el SHA remoto y Actions después de que el usuario suba el bloque. La existencia de este documento en una copia local no demuestra que ya se haya publicado.
+Se recuperó la base publicada en una copia separada porque la carpeta anterior reapareció con cambios de una etapa previa. No reaplicar esos cambios antiguos ni borrar la carpeta sin revisar.
 
-Supabase: `lmmrzmdhmagggddgdzmt`, nueve migraciones desde `20261106184506` hasta `20261107001140`. No reaplicarlas. En COG-002 no se cambió producción. El APK de pruebas usa este backend real.
+## Bloque actual
 
-## Complemento COG-002A
+COG-003 prepara el editor de permisos por cargo. Leer `docs/BLOQUE_03.md` y conservar `docs/arquitectura/MANUAL_IPUC_2018.md` como referencia configurable por organización.
 
-El usuario aportó el Manual IPUC revisado hasta abril de 2018. Leer primero `docs/arquitectura/MANUAL_IPUC_2018.md`: estructura, diferencias entre cargos/oficios/credenciales, permisos por recurso y organización, procesos colegiados y UX por perfil. El complemento contiene documentación, sin cambiar Android, conceder permisos ni ejecutar migraciones.
+Las definiciones de las cuatro funciones requeridas fueron aportadas por el usuario desde SQL Editor. La aplicación nueva usa `configurar_permisos_cargo_verificado_app` para detectar una selección desactualizada y conserva las validaciones y auditoría de la función original.
 
-COG-002 está publicado en `f672d6c2fb6cd1ec74ecc21b0efcd05f2f453c15`; Actions 42343104701 terminó correctamente. La carpeta antigua reapareció con cambios de una etapa anterior: se conservó y se recuperó GitHub en una copia separada. No intentar aplicar esos cambios antiguos encima del bloque 02.
+El SQL `database/manual/COG_003_permisos_verificados.sql` fue probado exclusivamente en una base aislada. **Su instalación en producción queda pendiente de confirmación del usuario.** Revisar `COG_003_verificar_instalacion.sql`; no ejecutar otra vez la instalación si ya existe la función ni sustituirla sin inspección. La firma antigua se conserva para uso interno y se retira su ejecución directa para usuarios de la app.
 
-La revisión automática de la consulta Supabase alcanzó el límite de uso; la consulta no se ejecutó. Queda pendiente volver a verificar las funciones en vivo cuando el acceso se restablezca. No sustituir esa comprobación por suposiciones ni por otra vía para eludir el control.
+La rama de entrega es `work/coiglesia-bloque-03`. Su publicación y build remoto deben verificarse después del push del usuario. El APK funcional 0.5.0-pruebas se obtiene de Actions con las variables públicas del repositorio. El APK local de comprobación no tiene configuración de conexión y no se entrega para instalar.
 
-## Próximo bloque COG-003
+Supabase: `lmmrzmdhmagggddgdzmt`. Conservar las nueve migraciones previamente aplicadas. El SQL nuevo se ejecutará manualmente: no afirmar que la herramienta lo registró automáticamente en el historial de migraciones.
 
-Consolidar la administración de permisos: inspeccionar `permisos_cargo_app` y `configurar_permisos_cargo_app`; implementar un editor nacional con confirmación y protección de los cargos propios. Revisar perfiles de lectura/gestión territorial y ampliar pruebas sin otorgar permisos generales. Después continuar pastoral, credenciales y edición de obras, informes y pruebas en dispositivo. No considerar la aplicación terminada únicamente porque compile.
+## Siguiente bloque
 
-## Mensaje de reanudación
+Aislamiento entre organizaciones y alcance de permisos por equipo/departamento. Inspeccionar schema real y datos agregados antes de diseñar migraciones. No incorporar otra organización al mismo conjunto de datos sin comprobar aislamiento. No conceder `eclesiastica.gestionar` a un director musical suponiendo que solo autoriza música. Después: cargos/oficios, credenciales, actas y flujos pastorales, interfaz final por perfil y pruebas en dispositivo.
 
-Continúa Coiglesia desde el complemento COG-002A. Lee docs/CONTINUIDAD.md y docs/arquitectura/MANUAL_IPUC_2018.md en coronel1206/coiglesia-android, rama work/coiglesia-bloque-02a-manual (o main si ya se fusionó). La última versión funcional Android sigue siendo COG-002. Verifica el commit y Actions, compara con Supabase y desarrolla solo el bloque COG-003. No repitas migraciones ni sobrescribas cambios. Entrega parche, APK verificado, instrucciones Termux y punto de continuidad actualizado.
+## Mensaje para reanudar
 
-## Conservación
+Continúa Coiglesia desde COG-003. Revisa work/coiglesia-bloque-03, docs/BLOQUE_03.md y docs/arquitectura/MANUAL_IPUC_2018.md. Comprueba el commit remoto, Actions y si el usuario aplicó el SQL manual. Conserva lo existente, no repitas migraciones y desarrolla el siguiente bloque con entrega e instrucciones de Termux.
 
-Guardar cada entrega descargable y subir el bloque a GitHub desde Termux. Si se interrumpe Work antes del push, adjuntar el ZIP e indicar el último comando exitoso. El script debe detenerse ante cambios locales y nunca usar reset --hard ni forzar publicaciones. No fusionar main antes de revisar CI y validar en dispositivo.
+Si el bloque aún no se publicó, recuperar el ZIP y preguntar por el último comando completado. No fusionar main antes de verificar CI y el recorrido en dispositivo. Las pruebas no deben introducir datos ficticios en producción.

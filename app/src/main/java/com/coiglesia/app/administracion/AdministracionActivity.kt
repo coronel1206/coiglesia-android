@@ -140,6 +140,18 @@ class AdministracionActivity : Activity() {
         for(i in 0 until cargos.length()) {
             val c=cargos.getJSONObject(i);val permisos=c.optJSONArray("permisos")
             texto(contenido,"${c.getString("nombre")} · ${c.getString("nivel")}\n"+(0 until (permisos?.length() ?: 0)).joinToString(" · "){permisos!!.getString(it)})
+            contenido.addView(Button(this).apply {
+                text="Revisar y editar permisos";isAllCaps=false
+                setOnClickListener {
+                    if(!busy) {
+                        busy=true
+                        EditorPermisos.mostrar(this@AdministracionActivity,token,c.getString("id"),c.getString("nombre"),c.getString("nivel")) {
+                            busy=false
+                            if(!isFinishing && !isDestroyed) cargar()
+                        }
+                    }
+                }
+            })
         }
         texto(contenido,"Asignaciones e historial")
         val rows=data.getJSONArray("asignaciones")

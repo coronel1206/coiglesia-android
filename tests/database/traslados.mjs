@@ -278,5 +278,70 @@ await check('gestión distrital no permite crear actividades nacionales',async()
     assert.equal(r.nacional,false);assert.ok(r.territorios.length>0);assert.ok(r.territorios.every(t=>t.distrito_id===id(1)));
     await denied(saveTeam,[null,'ministerio','Nacional',null,null,null],/permiso/);
 });
+// COG-003: instala únicamente en PGlite la función propuesta para SQL Editor.
+await db.exec(await readFile(new URL('database/manual/COG_003_permisos_verificados.sql',root),'utf8'));
+const snapshot=async cargo=>(await query("select coalesce(array_agg(distinct p.codigo::text order by p.codigo::text),array[]::text[]) codes from public.cargos_permisos cp join public.permisos p on p.id=cp.permiso_id where cp.cargo_id=$1",[cargo])).rows[0].codes;
+const configure="select public.configurar_permisos_cargo_verificado_app($1,$2::text[],$3::text[])";
+await check('permiso nacional requerido para configurar cargos',async()=>{
+    const before=await snapshot(id(43));await login(32);
+    await denied(configure,[id(43),['personas.consultar'],before],/nacional/);
+    assert.deepEqual(await snapshot(id(43)),before);
+});
+await check('administrador no puede cambiar permisos de su propio cargo',async()=>{
+    await login(31);const before=await snapshot(id(41));
+    await denied(configure,[id(41),[],before],/propio cargo/);
+    assert.deepEqual(await snapshot(id(41)),before);
+});
+await check('cargo local no puede recibir administración nacional',async()=>{
+    await login(31);const before=await snapshot(id(43));
+    await denied(configure,[id(43),['usuarios.administrar'],before],/cargo nacional/);
+    assert.deepEqual(await snapshot(id(43)),before);
+});
+await check('permiso inexistente no modifica permisos ni auditoría',async()=>{
+    await login(31);const before=await snapshot(id(43));const n=(await query('select count(*)::int n from public.auditoria_administracion')).rows[0].n;
+    await denied(configure,[id(43),['permiso.inventado'],before],/inexistentes/);
+    assert.deepEqual(await snapshot(id(43)),before);
+    assert.equal((await query('select count(*)::int n from public.auditoria_administracion')).rows[0].n,n);
+});
+let stale;
+await check('cambio autorizado usa selección exacta y genera auditoría',async()=>{
+    await login(31);stale=await snapshot(id(43));
+    await query(configure,[id(43),['personas.consultar','eclesiastica.consultar'],stale]);
+    assert.deepEqual(await snapshot(id(43)),['eclesiastica.consultar','personas.consultar']);
+    const a=(await query("select * from public.auditoria_administracion where accion='configurar_permisos_cargo' and entidad_id=$1",[id(43)])).rows;
+    assert.equal(a.length,1);assert.deepEqual([...a[0].datos_anteriores].sort(),[...stale].sort());
+    assert.deepEqual([...a[0].datos_nuevos].sort(),['eclesiastica.consultar','personas.consultar']);
+});
+await check('formulario desactualizado no sobrescribe el cambio anterior',async()=>{
+    await login(31);const before=await snapshot(id(43));
+    await denied(configure,[id(43),[],stale],/cambiaron/);assert.deepEqual(await snapshot(id(43)),before);
+});
+await check('reenvío tras respuesta perdida se rechaza sin auditar dos veces',async()=>{
+    await login(31);await denied(configure,[id(43),['personas.consultar','eclesiastica.consultar'],stale],/cambiaron/);
+    assert.equal((await query("select count(*)::int n from public.auditoria_administracion where accion='configurar_permisos_cargo' and entidad_id=$1",[id(43)])).rows[0].n,1);
+});
+await check('snapshot obligatorio incluso con selección vacía',async()=>{
+    await login(31);await denied(configure,[id(43),[],null],/recargar/);
+});
+await check('cargo inexistente no puede configurarse',async()=>{
+    await login(31);await denied(configure,[id(9999),[],[]],/no encontrado/);
+});
+await check('authenticated no puede eludir concurrencia por firma antigua',async()=>{
+    await login(31);await db.exec('SET ROLE authenticated');
+    await denied('select public.configurar_permisos_cargo_app($1,$2::text[])',[id(43),[]],/permission denied/);
+    await db.exec('RESET ROLE');
+});
+await check('authenticated puede vaciar permisos mediante firma verificada',async()=>{
+    await login(31);const before=await snapshot(id(43));await db.exec('SET ROLE authenticated');
+    await query(configure,[id(43),[],before]);await db.exec('RESET ROLE');
+    assert.deepEqual(await snapshot(id(43)),[]);
+});
+await check('anon no puede ejecutar el editor verificado',async()=>{
+    await db.exec('SET ROLE anon');await denied(configure,[id(43),[],[]],/permission denied/);await db.exec('RESET ROLE');
+});
+await check('catálogo conserva los códigos y las marcas asignadas reales',async()=>{
+    await login(31);const rows=(await query('select public.permisos_cargo_app($1) r',[id(43)])).rows[0].r;
+    assert.ok(rows.length>0);assert.ok(rows.every(r=>!r.asignado));assert.ok(rows.some(r=>r.codigo==='eclesiastica.consultar'));
+});
 console.log(`${tests} pruebas aprobadas. Base aislada eliminada al cerrar.`);
 await db.close();
