@@ -23,6 +23,9 @@ class MainActivity : Activity() {
     private var sessionToken: String? = null
 
     private val modules = listOf(
+        "Resumen territorial",
+        "Mi acceso y responsabilidades",
+        "Usuarios y cargos",
         "Distritos",
         "Congregaciones",
         "Obras en Proyección",
@@ -44,7 +47,7 @@ class MainActivity : Activity() {
     private fun createRoot(): LinearLayout {
         return LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setPadding(28, 36, 28, 20)
+            setPadding((20 * resources.displayMetrics.density).toInt(), (24 * resources.displayMetrics.density).toInt(), (20 * resources.displayMetrics.density).toInt(), (16 * resources.displayMetrics.density).toInt())
             setBackgroundColor(Color.rgb(247, 249, 252))
         }
     }
@@ -128,6 +131,8 @@ class MainActivity : Activity() {
                     }
 
                     if (access.authorized) {
+                        com.coiglesia.app.auth.SessionManager.install(login.accessToken!!, login.refreshToken, login.expiresIn)
+                        password.text.clear()
                         sessionToken = login.accessToken
                         showMainMenu()
                     } else {
@@ -160,14 +165,14 @@ class MainActivity : Activity() {
 
         val subtitle = TextView(this).apply {
             text = "Sistema Nacional de Gestión Eclesiástica\n" +
-                "Administrador Nacional · Navegación inicial"
+                "Acceso según sus permisos y territorio"
             textSize = 15f
             gravity = Gravity.CENTER
             setPadding(0, 14, 0, 24)
         }
 
         val detail = TextView(this).apply {
-            text = "Selecciona un módulo para explorar la aplicación."
+            text = "Seleccione un módulo. Cada operación valida sus permisos."
             textSize = 17f
             setPadding(8, 20, 8, 20)
         }
@@ -180,10 +185,25 @@ class MainActivity : Activity() {
 
         modules.forEach { name ->
             val button = Button(this).apply {
-                text = name
+                val pendiente = name in setOf("Pastores", "Comités", "Músicos", "Eventos y asistencia", "Asambleas")
+                text = if (pendiente) "$name · pendiente" else name
+                isEnabled = !pendiente
                 isAllCaps = false
                 setOnClickListener {
-                    if (name == "Distritos") {
+                    if (name == "Resumen territorial" || name == "Mi acceso y responsabilidades") {
+                        val token = sessionToken
+                        if (token.isNullOrBlank()) showLogin()
+                        else startActivity(Intent(this@MainActivity,
+                            com.coiglesia.app.reportes.ResumenActivity::class.java)
+                            .putExtra(PersonasActivity.EXTRA_TOKEN, token)
+                            .putExtra("perfil", name == "Mi acceso y responsabilidades"))
+                    } else if (name == "Usuarios y cargos") {
+                        val token = sessionToken
+                        if (token.isNullOrBlank()) showLogin()
+                        else startActivity(Intent(this@MainActivity,
+                            com.coiglesia.app.administracion.AdministracionActivity::class.java)
+                            .putExtra(PersonasActivity.EXTRA_TOKEN, token))
+                    } else if (name == "Distritos") {
                         val token = sessionToken
                         if (token.isNullOrBlank()) {
                             showLogin()
@@ -245,6 +265,12 @@ class MainActivity : Activity() {
                             )
                             startActivity(intent)
                         }
+                    } else if (name == "Traslados") {
+                        val token = sessionToken
+                        if (token.isNullOrBlank()) showLogin()
+                        else startActivity(Intent(this@MainActivity,
+                            com.coiglesia.app.personas.MembresiasActivity::class.java)
+                            .putExtra(PersonasActivity.EXTRA_TOKEN, token))
                     } else if (name == "Personas y miembros") {
                         val token = sessionToken
 
@@ -268,7 +294,9 @@ class MainActivity : Activity() {
                     }
                 }
             }
-            menu.addView(button)
+            menu.addView(button, LinearLayout.LayoutParams(-1, -2).apply {
+                bottomMargin = (8 * resources.displayMetrics.density).toInt()
+            })
         }
 
         scroll.addView(menu)
@@ -277,6 +305,12 @@ class MainActivity : Activity() {
             text = "Cerrar sesión"
             isAllCaps = false
             setOnClickListener {
+                val previous = com.coiglesia.app.auth.SessionManager.clear()
+                Thread {
+                    if (previous.isNotBlank()) runCatching {
+                        com.coiglesia.app.network.SupabaseHttp.request("/auth/v1/logout?scope=local", org.json.JSONObject(), previous)
+                    }
+                }.start()
                 sessionToken = null
                 showLogin()
             }

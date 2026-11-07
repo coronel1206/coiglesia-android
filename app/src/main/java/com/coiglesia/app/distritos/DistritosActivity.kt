@@ -188,6 +188,20 @@ class DistritosActivity : Activity() {
                         }
 
                         lista.addView(item)
+                        lista.addView(Button(this).apply {
+                            text = "Editar distrito"; isAllCaps = false
+                            setOnClickListener {
+                                com.coiglesia.app.territorio.EditorTerritorial.mostrar(
+                                    this@DistritosActivity, token, "Editar distrito",
+                                    "actualizar_distrito_app", distrito.id,
+                                    listOf(
+                                        com.coiglesia.app.territorio.EditorTerritorial.Campo("p_codigo", "Código", distrito.codigo, 20),
+                                        com.coiglesia.app.territorio.EditorTerritorial.Campo("p_nombre", "Nombre", distrito.nombre, 150),
+                                        com.coiglesia.app.territorio.EditorTerritorial.Campo("p_descripcion", "Descripción", distrito.descripcion, 4000)
+                                    ), listOf("activo", "inactivo"), distrito.estado
+                                ) { cargarDistritos(token) }
+                            }
+                        })
                     }
                 }
             }

@@ -22,79 +22,21 @@ object DistritosService {
         val mensaje: String
     )
 
-    private fun solicitar(
-        funcion: String,
-        token: String,
-        parametros: JSONObject
-    ): String {
-        require(token.isNotBlank()) {
-            "Sesion no disponible"
-        }
+    private fun solicitar(funcion: String, token: String, parametros: JSONObject): String =
+        com.coiglesia.app.network.SupabaseHttp.rpc(funcion, token, parametros)
 
-        val baseUrl = BuildConfig.SUPABASE_URL.trimEnd('/')
-        val apiKey = BuildConfig.SUPABASE_PUBLISHABLE_KEY
+    fun listar(token: String): Resultado<List<Distrito>> = listarFuncion(token, "listar_distritos_app")
 
-        require(baseUrl.startsWith("https://") &&
-                apiKey.isNotBlank()) {
-            "Configuracion de Supabase incompleta"
-        }
+    fun listarParaCongregaciones(token: String): Resultado<List<Distrito>> =
+        listarFuncion(token, "listar_distritos_congregaciones_app")
 
-        val conexion = URL(
-            "$baseUrl/rest/v1/rpc/$funcion"
-        ).openConnection() as HttpURLConnection
+    fun listarParaObras(token: String): Resultado<List<Distrito>> =
+        listarFuncion(token, "listar_distritos_obras_app")
 
-        try {
-            conexion.requestMethod = "POST"
-            conexion.connectTimeout = 15000
-            conexion.readTimeout = 15000
-            conexion.doOutput = true
-
-            conexion.setRequestProperty(
-                "Content-Type",
-                "application/json"
-            )
-            conexion.setRequestProperty("apikey", apiKey)
-            conexion.setRequestProperty(
-                "Authorization",
-                "Bearer $token"
-            )
-
-            conexion.outputStream.use {
-                it.write(
-                    parametros.toString()
-                        .toByteArray(Charsets.UTF_8)
-                )
-            }
-
-            val status = conexion.responseCode
-
-            val respuesta = (
-                if (status in 200..299) conexion.inputStream
-                else conexion.errorStream
-            )?.bufferedReader()?.use {
-                it.readText()
-            } ?: ""
-
-            if (status !in 200..299) {
-                throw IllegalStateException(
-                    when (status) {
-                        401, 403 -> "Acceso no autorizado"
-                        409 -> "El codigo del distrito ya existe"
-                        else -> "No fue posible completar la solicitud"
-                    }
-                )
-            }
-
-            return respuesta
-        } finally {
-            conexion.disconnect()
-        }
-    }
-
-    fun listar(token: String): Resultado<List<Distrito>> {
+    private fun listarFuncion(token: String, funcion: String): Resultado<List<Distrito>> {
         return try {
             val respuesta = solicitar(
-                "listar_distritos_app",
+                funcion,
                 token,
                 JSONObject()
             )

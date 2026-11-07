@@ -204,7 +204,7 @@ class ObrasActivity : Activity() {
         mensaje.text = "Cargando distritos..."
 
         Thread {
-            val resultado = DistritosService.listar(token)
+            val resultado = DistritosService.listarParaObras(token)
 
             runOnUiThread {
                 if (isFinishing || isDestroyed) {
@@ -262,7 +262,7 @@ class ObrasActivity : Activity() {
         mensaje.text = "Cargando congregaciones..."
 
         Thread {
-            val resultado = CongregacionesService.listar(
+            val resultado = CongregacionesService.listarParaObras(
                 token,
                 distrito.id
             )

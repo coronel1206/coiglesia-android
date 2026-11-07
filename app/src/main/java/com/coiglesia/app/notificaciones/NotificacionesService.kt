@@ -81,7 +81,7 @@ object NotificacionesService {
 
             conexion.setRequestProperty(
                 "Authorization",
-                "Bearer $token"
+                "Bearer ${com.coiglesia.app.auth.SessionManager.tokenFor(token)}"
             )
 
             val parametros = JSONObject()
@@ -224,7 +224,7 @@ object NotificacionesService {
             conexion.setRequestProperty("apikey", apiKey)
             conexion.setRequestProperty(
                 "Authorization",
-                "Bearer $token"
+                "Bearer ${com.coiglesia.app.auth.SessionManager.tokenFor(token)}"
             )
 
             val parametros = JSONObject()

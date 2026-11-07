@@ -12,3 +12,9 @@ local.properties
 
 # Copias de seguridad
 *.bak
+
+node_modules/
+.env
+.env.*
+
+.kotlin/

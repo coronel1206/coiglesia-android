@@ -169,7 +169,7 @@ class CongregacionesActivity : Activity() {
         mensaje.text = "Cargando distritos..."
 
         Thread {
-            val resultado = DistritosService.listar(token)
+            val resultado = DistritosService.listarParaCongregaciones(token)
 
             runOnUiThread {
                 if (isFinishing || isDestroyed) {
@@ -260,6 +260,21 @@ class CongregacionesActivity : Activity() {
                         setPadding(12, 18, 12, 18)
                     }
                     lista.addView(item)
+                    lista.addView(Button(this).apply {
+                        text = "Editar congregación"; isAllCaps = false
+                        setOnClickListener {
+                            com.coiglesia.app.territorio.EditorTerritorial.mostrar(
+                                this@CongregacionesActivity, token, "Editar congregación",
+                                "actualizar_congregacion_app", congregacion.id,
+                                listOf(
+                                    com.coiglesia.app.territorio.EditorTerritorial.Campo("p_codigo", "Código", congregacion.codigo, 30),
+                                    com.coiglesia.app.territorio.EditorTerritorial.Campo("p_nombre", "Nombre", congregacion.nombre, 180),
+                                    com.coiglesia.app.territorio.EditorTerritorial.Campo("p_municipio", "Municipio", congregacion.municipio, 120),
+                                    com.coiglesia.app.territorio.EditorTerritorial.Campo("p_departamento", "Departamento", congregacion.departamento, 120)
+                                ), listOf("activa", "inactiva", "cerrada"), congregacion.estado
+                            ) { cargarCongregaciones() }
+                        }
+                    })
                 }
             }
         }.start()

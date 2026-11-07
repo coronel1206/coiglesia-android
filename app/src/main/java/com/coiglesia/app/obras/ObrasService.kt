@@ -36,106 +36,8 @@ object ObrasService {
         }
     }
 
-    private fun solicitar(
-        funcion: String,
-        token: String,
-        parametros: JSONObject
-    ): String {
-        require(token.isNotBlank()) {
-            "La sesion no esta disponible"
-        }
-
-        val baseUrl = BuildConfig.SUPABASE_URL.trimEnd('/')
-        val apiKey = BuildConfig.SUPABASE_PUBLISHABLE_KEY
-
-        require(
-            baseUrl.startsWith("https://") &&
-            apiKey.isNotBlank()
-        ) {
-            "Configuracion de Supabase incompleta"
-        }
-
-        val conexion = URL(
-            "$baseUrl/rest/v1/rpc/$funcion"
-        ).openConnection() as HttpURLConnection
-
-        try {
-            conexion.requestMethod = "POST"
-            conexion.connectTimeout = 15000
-            conexion.readTimeout = 15000
-            conexion.doOutput = true
-
-            conexion.setRequestProperty(
-                "Content-Type",
-                "application/json"
-            )
-
-            conexion.setRequestProperty(
-                "apikey",
-                apiKey
-            )
-
-            conexion.setRequestProperty(
-                "Authorization",
-                "Bearer $token"
-            )
-
-            conexion.outputStream.use {
-                it.write(
-                    parametros.toString()
-                        .toByteArray(Charsets.UTF_8)
-                )
-            }
-
-            val status = conexion.responseCode
-
-            val respuesta = (
-                if (status in 200..299) {
-                    conexion.inputStream
-                } else {
-                    conexion.errorStream
-                }
-            )?.bufferedReader()?.use {
-                it.readText()
-            } ?: ""
-
-            if (status !in 200..299) {
-                val error = try {
-                    JSONObject(respuesta)
-                } catch (_: Exception) {
-                    JSONObject()
-                }
-
-                val codigo = error.optString("code")
-                val detalle = error.optString("message")
-
-                val mensaje = when {
-                    status == 401 ||
-                    status == 403 ||
-                    codigo == "42501" ->
-                        "No tiene autorizacion para esta operacion"
-
-                    codigo == "23505" ->
-                        "El codigo ya existe"
-
-                    status >= 500 ->
-                        "Error del servidor"
-
-                    detalle.isNotBlank() ->
-                        detalle
-
-                    else ->
-                        "No fue posible completar la solicitud"
-                }
-
-                throw IllegalStateException(mensaje)
-            }
-
-            return respuesta
-        } finally {
-            conexion.disconnect()
-        }
-    }
+    private fun solicitar(funcion: String, token: String, parametros: JSONObject): String =
+        com.coiglesia.app.network.SupabaseHttp.rpc(funcion, token, parametros)
 
     fun listar(
         token: String,
@@ -156,7 +58,7 @@ object ObrasService {
                 )
 
             val respuesta = solicitar(
-                "listar_obras_app",
+                "listar_obras_gestion_app",
                 token,
                 parametros
             )

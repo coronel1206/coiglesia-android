@@ -21,7 +21,8 @@ object PersonasService {
         val congregacionId: String,
         val congregacionNombre: String,
         val distritoId: String,
-        val distritoNombre: String
+        val distritoNombre: String,
+        val estadoMembresia: String
     )
 
     data class Resultado<T>(
@@ -30,88 +31,13 @@ object PersonasService {
         val mensaje: String
     )
 
-    private fun solicitar(
-        funcion: String,
-        token: String,
-        parametros: JSONObject
-    ): String {
-        require(token.isNotBlank()) {
-            "La sesion no esta disponible"
-        }
-
-        val baseUrl = BuildConfig.SUPABASE_URL.trimEnd('/')
-        val apiKey = BuildConfig.SUPABASE_PUBLISHABLE_KEY
-
-        require(baseUrl.startsWith("https://") && apiKey.isNotBlank()) {
-            "Configuracion de Supabase incompleta"
-        }
-
-        val conexion = URL(
-            "$baseUrl/rest/v1/rpc/$funcion"
-        ).openConnection() as HttpURLConnection
-
-        try {
-            conexion.requestMethod = "POST"
-            conexion.connectTimeout = 15000
-            conexion.readTimeout = 15000
-            conexion.doOutput = true
-
-            conexion.setRequestProperty(
-                "Content-Type", "application/json"
-            )
-            conexion.setRequestProperty("apikey", apiKey)
-            conexion.setRequestProperty(
-                "Authorization", "Bearer $token"
-            )
-
-            conexion.outputStream.use {
-                it.write(
-                    parametros.toString()
-                        .toByteArray(Charsets.UTF_8)
-                )
-            }
-
-            val status = conexion.responseCode
-            val respuesta = (
-                if (status in 200..299) conexion.inputStream
-                else conexion.errorStream
-            )?.bufferedReader()?.use {
-                it.readText()
-            } ?: ""
-
-            if (status !in 200..299) {
-                val detalle = try {
-                    val json = JSONObject(respuesta)
-                    listOf(
-                        json.optString("message"),
-                        json.optString("details"),
-                        json.optString("hint"),
-                        json.optString("code")
-                    ).filter {
-                        it.isNotBlank() && it != "null"
-                    }.joinToString("\n")
-                } catch (_: Exception) {
-                    respuesta
-                }
-
-                throw IllegalStateException(
-                    "Error HTTP $status al ejecutar $funcion:\n" +
-                    detalle.ifBlank {
-                        "Supabase no devolvio detalles"
-                    }
-                )
-            }
-
-            return respuesta
-        } finally {
-            conexion.disconnect()
-        }
-    }
+    private fun solicitar(funcion: String, token: String, parametros: JSONObject): String =
+        com.coiglesia.app.network.SupabaseHttp.rpc(funcion, token, parametros)
 
     fun listar(token: String): Resultado<List<Persona>> {
         return try {
             val respuesta = solicitar(
-                "listar_personas_autorizadas_app",
+                "listar_personas_resumen_app",
                 token,
                 JSONObject()
             )
@@ -141,7 +67,8 @@ object PersonasService {
                         congregacionId = item.getString("congregacion_id"),
                         congregacionNombre = item.getString("congregacion_nombre"),
                         distritoId = item.getString("distrito_id"),
-                        distritoNombre = item.getString("distrito_nombre")
+                        distritoNombre = item.getString("distrito_nombre"),
+                        estadoMembresia = item.optString("estado_membresia", "no_disponible")
                     )
                 )
             }
@@ -575,6 +502,9 @@ object PersonasService {
             )
         }
 
+        ValidacionMembresia.validar(fechaIngreso, observaciones)?.let {
+            return Resultado(false, mensaje = it)
+        }
         if (fechaIngreso.isBlank()) {
             return Resultado(
                 correcto = false,
@@ -610,6 +540,51 @@ object PersonasService {
                     ?: "Error al registrar la nueva membresia"
             )
         }
+    }
+
+    fun trasladarPersona(
+        token: String, personaId: String, congregacionDestinoId: String,
+        fechaTraslado: String, observaciones: String, membresiaOrigenId: String
+    ): Resultado<String> {
+        if (personaId.isBlank() || congregacionDestinoId.isBlank()) {
+            return Resultado(false, mensaje = "Seleccione persona y destino")
+        }
+        ValidacionMembresia.validar(fechaTraslado, observaciones)?.let {
+            return Resultado(false, mensaje = it)
+        }
+        return try {
+            // Una sola RPC: el servidor finaliza y registra dentro de la misma transacción.
+            val respuesta = solicitar("trasladar_persona_app", token, JSONObject()
+                .put("p_persona_id", personaId)
+                .put("p_congregacion_destino_id", congregacionDestinoId)
+                .put("p_membresia_origen_esperada_id", membresiaOrigenId)
+                .put("p_fecha_traslado", fechaTraslado)
+                .put("p_observaciones", observaciones.trim().ifBlank { JSONObject.NULL }))
+            Resultado(true, respuesta.trim().trim('"'), "Traslado realizado correctamente")
+        } catch (e: Exception) {
+            Resultado(false, mensaje = e.message ?: "No se pudo confirmar el traslado")
+        }
+    }
+
+    fun listarDestinosMembresia(token: String): Resultado<List<CongregacionRegistro>> = try {
+        val items = JSONArray(solicitar("listar_destinos_membresia_app", token, JSONObject()))
+        Resultado(true, (0 until items.length()).map { i ->
+            val item = items.getJSONObject(i)
+            CongregacionRegistro(item.getString("id"), item.getString("distrito_id"),
+                item.getString("codigo"), item.getString("nombre"))
+        }, "Destinos consultados")
+    } catch (e: Exception) {
+        Resultado(false, mensaje = e.message ?: "No se pudieron consultar los destinos")
+    }
+
+    fun listarDistritosMembresia(token: String): Resultado<List<DistritoRegistro>> = try {
+        val items = JSONArray(solicitar("listar_distritos_membresia_app", token, JSONObject()))
+        Resultado(true, (0 until items.length()).map { i ->
+            val item = items.getJSONObject(i)
+            DistritoRegistro(item.getString("id"), item.getString("codigo"), item.getString("nombre"))
+        }, "Distritos consultados")
+    } catch (e: Exception) {
+        Resultado(false, mensaje = e.message ?: "No se pudieron consultar los distritos")
     }
 
 }

@@ -1,0 +1,15 @@
+<resources>
+    <style name="Theme.Coiglesia" parent="android:style/Theme.Material.Light.NoActionBar">
+        <item name="android:fontFamily">sans</item>
+        <item name="android:colorAccent">#087F8C</item>
+        <item name="android:colorControlActivated">#087F8C</item>
+        <item name="android:statusBarColor">#193356</item>
+        <item name="android:navigationBarColor">#193356</item>
+        <item name="android:windowLightStatusBar">false</item>
+        <item name="android:windowActionModeOverlay">true</item>
+        <item name="android:windowBackground">#F7F9FC</item>
+        <item name="android:colorButtonNormal">#E5EFF2</item>
+        <item name="android:textColorPrimary">#193356</item>
+        <item name="android:textColorSecondary">#45566D</item>
+    </style>
+</resources>

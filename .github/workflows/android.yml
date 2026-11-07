@@ -1,13 +1,17 @@
 name: Compilar APK Coiglesia
 on:
   push:
-    branches: [main]
+    branches: [main, 'work/**']
+  pull_request:
   workflow_dispatch:
 jobs:
   build:
     runs-on: ubuntu-latest
     permissions:
       contents: read
+    env:
+      SUPABASE_URL: ${{ vars.SUPABASE_URL }}
+      SUPABASE_PUBLISHABLE_KEY: ${{ vars.SUPABASE_PUBLISHABLE_KEY }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-java@v4
@@ -23,13 +27,28 @@ jobs:
         uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.9'
-      - name: Compilar APK de prueba
-        env:
-          SUPABASE_URL: ${{ vars.SUPABASE_URL }}
-          SUPABASE_PUBLISHABLE_KEY: ${{ vars.SUPABASE_PUBLISHABLE_KEY }}
-        run: gradle :app:assembleDebug --no-daemon
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Probar permisos y transacciones en PostgreSQL aislado
+        run: |
+          npm ci --prefix tests/database --ignore-scripts --no-audit --no-fund
+          npm test --prefix tests/database
+      - name: Validar configuración pública
+        run: |
+          test -n "$SUPABASE_URL" || { echo 'Falta la variable SUPABASE_URL'; exit 1; }
+          test -n "$SUPABASE_PUBLISHABLE_KEY" || { echo 'Falta la variable SUPABASE_PUBLISHABLE_KEY'; exit 1; }
+      - name: Pruebas, análisis y compilación
+        run: ./gradlew :app:testDebugUnitTest :app:lintDebug :app:assembleDebug --no-daemon
+      - name: Publicar informes de verificación
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: Coiglesia-verificaciones
+          path: app/build/reports/
       - name: Publicar APK como artefacto
         uses: actions/upload-artifact@v4
         with:
           name: Coiglesia-debug-apk
           path: app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error

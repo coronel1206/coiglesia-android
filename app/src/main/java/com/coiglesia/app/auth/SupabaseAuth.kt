@@ -11,6 +11,8 @@ object SupabaseAuth {
         val success: Boolean,
         val accessToken: String? = null,
         val userId: String? = null,
+        val refreshToken: String = "",
+        val expiresIn: Long = 3600,
         val message: String
     )
 
@@ -65,6 +67,8 @@ object SupabaseAuth {
                         success = true,
                         accessToken = token,
                         userId = userId,
+                        refreshToken = json.optString("refresh_token"),
+                        expiresIn = json.optLong("expires_in", 3600),
                         message = "Credenciales verificadas"
                     )
                 }
