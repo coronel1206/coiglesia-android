@@ -8,6 +8,7 @@
         <activity android:name=".MainActivity" android:exported="true">
             <intent-filter><action android:name="android.intent.action.MAIN"/><category android:name="android.intent.category.LAUNCHER"/></intent-filter>
         </activity>
+        <activity android:name=".eclesiastica.EclesiasticaActivity" android:exported="false" />
         <activity android:name=".administracion.AdministracionActivity" android:exported="false" />
         <activity android:name=".reportes.ResumenActivity" android:exported="false" />
         <activity android:name=".personas.MembresiasActivity" android:exported="false" />

@@ -32,6 +32,7 @@ class MainActivity : Activity() {
         "Notificaciones Distritales",
         "Personas y miembros",
         "Pastores",
+        "Ministerios",
         "Comités",
         "Músicos",
         "Traslados",
@@ -185,12 +186,18 @@ class MainActivity : Activity() {
 
         modules.forEach { name ->
             val button = Button(this).apply {
-                val pendiente = name in setOf("Pastores", "Comités", "Músicos", "Eventos y asistencia", "Asambleas")
+                val pendiente = name in setOf("Pastores")
                 text = if (pendiente) "$name · pendiente" else name
                 isEnabled = !pendiente
                 isAllCaps = false
                 setOnClickListener {
-                    if (name == "Resumen territorial" || name == "Mi acceso y responsabilidades") {
+                    val tipoEquipo = mapOf("Ministerios" to "ministerio", "Comités" to "comite", "Músicos" to "musica", "Eventos y asistencia" to "evento", "Asambleas" to "asamblea")[name]
+                    if (tipoEquipo != null) {
+                        val token = sessionToken
+                        if (token.isNullOrBlank()) showLogin()
+                        else startActivity(Intent(this@MainActivity, com.coiglesia.app.eclesiastica.EclesiasticaActivity::class.java)
+                            .putExtra("access_token", token).putExtra("tipo", tipoEquipo))
+                    } else if (name == "Resumen territorial" || name == "Mi acceso y responsabilidades") {
                         val token = sessionToken
                         if (token.isNullOrBlank()) showLogin()
                         else startActivity(Intent(this@MainActivity,

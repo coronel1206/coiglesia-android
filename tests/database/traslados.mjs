@@ -187,5 +187,96 @@ await check('no desactiva distrito con congregaciones activas',async()=>{
     await login(31);
     await denied("select public.actualizar_distrito_app($1,'D1','Distrito 1','','inactivo')",[id(1)],/desactive/);
 });
+// Bloque COG-002: restricciones estructurales necesarias para las FK del esquema real.
+await db.exec(`ALTER TABLE public.distritos ADD PRIMARY KEY(id);
+ALTER TABLE public.congregaciones ADD PRIMARY KEY(id);
+ALTER TABLE public.personas ADD PRIMARY KEY(id);
+ALTER TABLE public.permisos ADD UNIQUE(codigo);`);
+await db.exec(await readFile(new URL('database/changes/equipos_actividades_asistencia_y_permisos_territoriales.sql', root), 'utf8'));
+const saveTeam = "select public.guardar_eclesiastica_app($1,$2,$3,'',$4,$5,$6,'','activo') id";
+let team, event;
+await check('sin sesión no obtiene registros ni territorios de actividades',async()=>{
+    await login(null);const r=(await query("select public.listar_eclesiastica_app('ministerio') r")).rows[0].r;
+    assert.equal(r.registros.length,0);assert.equal(r.territorios.length,0);assert.equal(r.nacional,false);
+});
+await check('administrador crea equipo local con auditoría',async()=>{
+    await login(31);team=(await query(saveTeam,[null,'ministerio','Equipo local',id(1),id(11),null])).rows[0].id;
+    assert.equal((await query("select count(*)::int n from public.auditoria_administracion where accion='guardar_ministerio'")).rows[0].n,1);
+});
+await check('cargo local sin permiso de actividades no puede ver ni editar',async()=>{
+    await login(33);assert.equal((await query("select public.listar_eclesiastica_app('ministerio') r")).rows[0].r.registros.length,0);
+    await denied(saveTeam,[team,'ministerio','No autorizado',id(1),id(11),null],/permiso/);
+});
+await db.exec(`INSERT INTO public.cargos_permisos SELECT '${id(43)}',id FROM public.permisos WHERE codigo='eclesiastica.gestionar';`);
+await check('permiso local solo ofrece su territorio',async()=>{
+    await login(33);const r=(await query("select public.listar_eclesiastica_app('ministerio') r")).rows[0].r;
+    assert.equal(r.nacional,false);assert.equal(r.registros.length,1);assert.equal(r.territorios.length,1);
+    assert.equal(r.territorios[0].congregacion_id,id(11));
+    await denied(saveTeam,[null,'ministerio','Fuera del territorio',id(2),id(13),null],/permiso/);
+});
+await check('edición no permite trasladar el equipo de territorio',async()=>{
+    await login(31);await denied(saveTeam,[team,'ministerio','Traslado indebido',id(2),id(13),null],/territorio/);
+});
+await check('integrante actualizado no crea duplicados',async()=>{
+    await login(33);
+    await query("select public.guardar_participante_app($1,$2,'Coordinador',false,true)",[team,id(25)]);
+    await query("select public.guardar_participante_app($1,$2,'Integrante',false,true)",[team,id(25)]);
+    assert.equal((await query('select count(*)::int n from public.participaciones_eclesiasticas where registro_id=$1',[team])).rows[0].n,1);
+});
+await check('persona ajena al territorio no puede agregarse',async()=>{
+    await login(33);await denied("select public.guardar_participante_app($1,$2,'',false,true)",[team,id(24)],/territorio/);
+});
+await check('equipo musical o ministerio no acepta asistencia',async()=>{
+    await login(33);await denied("select public.guardar_participante_app($1,$2,'',true,true)",[team,id(25)],/asistencia/);
+});
+await check('evento requiere fecha',async()=>{
+    await login(31);await denied(saveTeam,[null,'evento','Sin fecha',id(1),id(11),null],/fecha/);
+});
+await check('evento futuro rechaza asistencia sin modificar participación',async()=>{
+    await login(31);event=(await query("select public.guardar_eclesiastica_app(null,'evento','Evento','','"+id(1)+"','"+id(11)+"',current_date+1,'','activo') id")).rows[0].id;
+    await denied("select public.guardar_participante_app($1,$2,'',true,true)",[event,id(25)],/antes/);
+    assert.equal((await query('select count(*)::int n from public.participaciones_eclesiasticas where registro_id=$1',[event])).rows[0].n,0);
+});
+await check('evento vigente registra asistencia y desactivación sin borrar historial',async()=>{
+    await login(31);await query("select public.guardar_eclesiastica_app($1,'evento','Evento','',$2,$3,current_date,'','activo')",[event,id(1),id(11)]);
+    await query("select public.guardar_participante_app($1,$2,'',true,true)",[event,id(25)]);
+    let r=(await query("select public.listar_eclesiastica_app('evento') r")).rows[0].r.registros[0];assert.equal(r.asistentes,1);
+    await query("select public.guardar_participante_app($1,$2,'',true,false)",[event,id(25)]);
+    r=(await query("select public.listar_eclesiastica_app('evento') r")).rows[0].r.registros[0];assert.equal(r.asistentes,0);
+    assert.equal((await query('select count(*)::int n from public.participaciones_eclesiasticas where registro_id=$1',[event])).rows[0].n,1);
+});
+await check('registro inactivo bloquea cambios de integrantes',async()=>{
+    await login(31);await query("select public.guardar_eclesiastica_app($1,'ministerio','Equipo local','',$2,$3,null,'','inactivo')",[team,id(1),id(11)]);
+    await denied("select public.guardar_participante_app($1,$2,'',false,true)",[team,id(25)],/Reactive/);
+});
+await check('tablas de actividades no permiten escritura directa authenticated',async()=>{
+    await db.exec('SET ROLE authenticated');
+    await denied("insert into public.registros_eclesiasticos(tipo,nombre,creado_por) values ('comite','Bypass',$1)",[id(31)],/permission denied/);
+    await db.exec('RESET ROLE');
+});
+await check('anon no puede ejecutar RPC de participantes',async()=>{
+    await db.exec('SET ROLE anon');await denied('select public.participantes_eclesiastica_app($1)',[team],/permission denied/);await db.exec('RESET ROLE');
+});
+await check('comités, músicos y asambleas usan el contrato existente',async()=>{
+    await login(31);
+    for(const kind of ['comite','musica','asamblea']) {
+        await query("select public.guardar_eclesiastica_app(null,$1,$2,'',null,null,current_date,'','activo')",[kind,'Registro '+kind]);
+        const r=(await query('select public.listar_eclesiastica_app($1) r',[kind])).rows[0].r;
+        assert.equal(r.registros.length,1);assert.equal(r.registros[0].tipo,kind);
+    }
+});
+await check('permiso de consulta permite leer pero no gestionar',async()=>{
+    await db.exec(`DELETE FROM public.cargos_permisos WHERE cargo_id='${id(43)}' AND permiso_id IN (SELECT id FROM public.permisos WHERE codigo='eclesiastica.gestionar');
+    INSERT INTO public.cargos_permisos SELECT '${id(43)}',id FROM public.permisos WHERE codigo='eclesiastica.consultar';`);
+    await login(33);const r=(await query("select public.listar_eclesiastica_app('ministerio') r")).rows[0].r;
+    assert.equal(r.registros.length,1);assert.equal(r.registros[0].editable,false);assert.equal(r.territorios.length,0);
+    await denied(saveTeam,[null,'ministerio','Sin permiso',id(1),id(11),null],/permiso/);
+});
+await check('gestión distrital no permite crear actividades nacionales',async()=>{
+    await db.exec(`INSERT INTO public.cargos_permisos SELECT '${id(42)}',id FROM public.permisos WHERE codigo='eclesiastica.gestionar';`);
+    await login(32);const r=(await query("select public.listar_eclesiastica_app('evento') r")).rows[0].r;
+    assert.equal(r.nacional,false);assert.ok(r.territorios.length>0);assert.ok(r.territorios.every(t=>t.distrito_id===id(1)));
+    await denied(saveTeam,[null,'ministerio','Nacional',null,null,null],/permiso/);
+});
 console.log(`${tests} pruebas aprobadas. Base aislada eliminada al cerrar.`);
 await db.close();

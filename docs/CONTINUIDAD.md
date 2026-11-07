@@ -1,32 +1,23 @@
-# COIGLESIA — punto de continuidad COG-001
+# COIGLESIA — punto de continuidad COG-002
 
-## Regla de trabajo por bloques
+Trabajar por bloques: entregar, subir desde Termux, verificar GitHub Actions y continuar. No asumir persistencia de archivos temporales ni de la memoria del chat.
 
-Entregar un bloque funcional verificado antes de comenzar el siguiente. Cada bloque debe incluir cambios, pruebas ejecutadas, pendientes, archivos descargables y comandos de integración en una rama. Después de que el usuario lo suba desde Termux, verificar el commit remoto antes de avanzar. No asumir que un archivo local o la memoria del chat seguirán disponibles tras una interrupción.
+## Estado verificado
 
-## Bloque COG-001: recuperación, traslados y edición territorial
+COG-001 publicado por el usuario en `3655d9138af0b00f788dde0a206a7c535b83a379`, rama `work/coiglesia-bloque-01`. GitHub Actions aprobado. Incluye traslados atómicos con origen esperado, membresías, administración inicial, resumen/CSV y edición territorial. El respaldo del avance de Termux se conserva en su rama separada; no mezclarlo de nuevo porque su funcionalidad ya está integrada.
 
-Base remota verificada: `3fde7ae52af1daca871106919269aa1a6fc7e495`, repositorio `coronel1206/coiglesia-android`.
-Aplicación debug: `com.coiglesia.app.preview`, versión `0.3.0-pruebas`.
-Incluye traslados con origen esperado y una RPC atómica, administración inicial de cargos/usuarios, resumen/CSV, edición de distritos y congregaciones y selectores de obras según permisos.
+COG-002 añade las interfaces de ministerios, comités, músicos, eventos, asambleas y participantes. Ver `docs/BLOQUE_02.md`. Rama de entrega: `work/coiglesia-bloque-02`; comprobar el SHA remoto y Actions después de que el usuario suba el bloque. La existencia de este documento en una copia local no demuestra que ya se haya publicado.
 
-El APK usa Supabase real y puede instalarse junto a la aplicación original. No insertar datos ficticios en producción. No se ha probado en un dispositivo ni con cuentas reales.
+Supabase: `lmmrzmdhmagggddgdzmt`, nueve migraciones desde `20261106184506` hasta `20261107001140`. No reaplicarlas. En COG-002 no se cambió producción. El APK de pruebas usa este backend real.
 
-Supabase: proyecto `lmmrzmdhmagggddgdzmt`. Nueve migraciones aplicadas desde `20261106184506` hasta `20261107001140`; no reaplicar. Los archivos en `database/changes` documentan esas migraciones. Los fixtures de `tests/database` se usan exclusivamente en PostgreSQL aislado.
+## Próximo bloque COG-003
 
-Estado detallado: `docs/RECUPERACION.md`. El paquete de entrega incluye resultados de compilación/pruebas y el SHA local. La publicación por Termux producirá un SHA propio, que debe consultarse en GitHub.
+Consolidar la administración de permisos: inspeccionar `permisos_cargo_app` y `configurar_permisos_cargo_app`; implementar un editor nacional con confirmación y protección de los cargos propios. Revisar perfiles de lectura/gestión territorial y ampliar pruebas sin otorgar permisos generales. Después continuar pastoral, credenciales y edición de obras, informes y pruebas en dispositivo. No considerar la aplicación terminada únicamente porque compile.
 
-## Próximo bloque COG-002
+## Mensaje de reanudación
 
-Recuperar y probar las pantallas de ministerios, comités, músicos, eventos, asambleas y participantes usando las funciones existentes: `listar_eclesiastica_app`, `guardar_eclesiastica_app`, `participantes_eclesiastica_app`, `guardar_participante_app`. Inspeccionar firmas y permisos actuales antes de implementar. Ampliar pruebas aisladas al esquema final. No diseñar tablas duplicadas.
+Continúa Coiglesia desde COG-002. Lee docs/CONTINUIDAD.md y docs/BLOQUE_02.md en coronel1206/coiglesia-android, rama work/coiglesia-bloque-02 (o main si ya se fusionó). Verifica el commit y Actions, compara con Supabase y desarrolla solo el bloque COG-003. No repitas migraciones ni sobrescribas cambios. Entrega parche, APK verificado, instrucciones Termux y punto de continuidad actualizado.
 
-Después: pastoral y credenciales; editor de permisos por cargo; edición de obras; informes y pulido visual; validación en dispositivo y firma de distribución. Las funciones backend de varias de estas tareas ya existen, pero su presencia no significa que la interfaz Android esté terminada.
+## Conservación
 
-## Mensaje para reanudar en Work
-
-Continúa Coiglesia desde el bloque COG-001. Revisa el repositorio coronel1206/coiglesia-android, la rama work/coiglesia-bloque-01 y docs/CONTINUIDAD.md y docs/RECUPERACION.md. Compara el estado remoto con Supabase antes de modificar. Si la rama fue fusionada, continúa desde main. No repitas las nueve migraciones ya aplicadas. Desarrolla únicamente el siguiente bloque COG-002 y entrégalo probado, con parche, instrucciones para Termux y punto de continuidad actualizado. No sobrescribas cambios existentes ni supongas que conservas los archivos de la sesión anterior.
-
-## Publicación y compilación remota
-
-No hay conexión GitHub con escritura en Work. El usuario integra y publica desde Termux. Mantener main estable y trabajar en una rama.
-El workflow requiere las variables de repositorio `SUPABASE_URL` y `SUPABASE_PUBLISHABLE_KEY` (clave pública; nunca service_role). Si faltan, documentar el fallo de Actions y configurar esas variables antes de declarar la compilación remota aprobada.
+Guardar cada entrega descargable y subir el bloque a GitHub desde Termux. Si se interrumpe Work antes del push, adjuntar el ZIP e indicar el último comando exitoso. El script debe detenerse ante cambios locales y nunca usar reset --hard ni forzar publicaciones. No fusionar main antes de revisar CI y validar en dispositivo.
