@@ -712,6 +712,14 @@ class PersonasActivity : Activity() {
         val selectorPersona = Spinner(this)
         panel.addView(selectorPersona)
 
+        etiqueta("Congregación de origen")
+        val origen = TextView(this).apply {
+            text = "Seleccione una persona para consultar su membresía"
+            textSize = 14f
+            setPadding(12, 12, 12, 12)
+        }
+        panel.addView(origen)
+
         etiqueta("Distrito de destino")
         val distrito = Spinner(this)
         panel.addView(distrito)
@@ -784,6 +792,7 @@ class PersonasActivity : Activity() {
         var personaElegida: PersonasService.Persona? = null
 
         var solicitudDestino = 0
+        var solicitudOrigen = 0
 
         selectorPersona.adapter = ArrayAdapter(
             this,
@@ -867,6 +876,43 @@ class PersonasActivity : Activity() {
             }
         )
 
+        fun cargarMembresiaOrigen(personaId: String) {
+            val solicitud = ++solicitudOrigen
+
+            origen.text = "Consultando membresía activa..."
+
+            Thread {
+                val resultado =
+                    PersonasService.listarMembresias(token, personaId)
+
+                runOnUiThread {
+                    if (isFinishing || isDestroyed ||
+                        solicitud != solicitudOrigen
+                    ) return@runOnUiThread
+
+                    if (!resultado.correcto) {
+                        origen.text = resultado.mensaje
+                        return@runOnUiThread
+                    }
+
+                    val activas = resultado.datos.orEmpty()
+                        .filter { it.estado.equals("activa", true) }
+
+                    origen.text = when {
+                        activas.size == 1 -> {
+                            val membresia = activas.first()
+                            "${membresia.congregacionNombre}\n" +
+                                "Distrito: ${membresia.distritoNombre}"
+                        }
+                        activas.isEmpty() ->
+                            "Esta persona no tiene una membresía activa."
+                        else ->
+                            "Atención: se encontraron varias membresías activas."
+                    }
+                }
+            }.start()
+        }
+
         selectorPersona.onItemSelectedListener =
             object : android.widget.AdapterView.OnItemSelectedListener {
                 override fun onNothingSelected(
@@ -889,6 +935,14 @@ class PersonasActivity : Activity() {
                         } else {
                             null
                         }
+
+                    solicitudOrigen++
+
+                    if (personaElegida == null) {
+                        origen.text = "Seleccione una persona"
+                    } else {
+                        cargarMembresiaOrigen(personaElegida!!.id)
+                    }
                 }
             }
 

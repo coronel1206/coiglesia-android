@@ -612,4 +612,101 @@ object PersonasService {
         }
     }
 
+
+    fun trasladarPersona(
+        token: String,
+        personaId: String,
+        congregacionDestinoId: String,
+        fechaTraslado: String,
+        observaciones: String
+    ): Resultado<String> {
+
+        if (personaId.isBlank() ||
+            congregacionDestinoId.isBlank()
+        ) {
+            return Resultado(
+                correcto = false,
+                mensaje = "Seleccione persona y congregación de destino"
+            )
+        }
+
+        if (fechaTraslado.isBlank()) {
+            return Resultado(
+                correcto = false,
+                mensaje = "La fecha del traslado es obligatoria"
+            )
+        }
+
+        if (observaciones.length > 2000) {
+            return Resultado(
+                correcto = false,
+                mensaje = "Las observaciones superan 2000 caracteres"
+            )
+        }
+
+        try {
+            val formato = java.text.SimpleDateFormat(
+                "yyyy-MM-dd",
+                java.util.Locale.US
+            ).apply {
+                isLenient = false
+            }
+
+            val fecha = formato.parse(fechaTraslado)
+
+            if (fecha == null ||
+                formato.format(fecha) != fechaTraslado
+            ) {
+                throw IllegalArgumentException()
+            }
+
+            if (fechaTraslado > formato.format(java.util.Date())) {
+                return Resultado(
+                    correcto = false,
+                    mensaje = "La fecha de traslado no puede ser futura"
+                )
+            }
+        } catch (_: Exception) {
+            return Resultado(
+                correcto = false,
+                mensaje = "Fecha inválida. Use AAAA-MM-DD"
+            )
+        }
+
+        return try {
+            val parametros = JSONObject()
+                .put("p_persona_id", personaId)
+                .put(
+                    "p_congregacion_destino_id",
+                    congregacionDestinoId
+                )
+                .put("p_fecha_traslado", fechaTraslado)
+                .put(
+                    "p_observaciones",
+                    observaciones.trim().ifBlank {
+                        JSONObject.NULL
+                    }
+                )
+
+            val respuesta = solicitar(
+                "trasladar_persona_app",
+                token,
+                parametros
+            )
+
+            Resultado(
+                correcto = true,
+                datos = respuesta.trim().trim('"'),
+                mensaje = "Traslado realizado correctamente"
+            )
+
+        } catch (e: Exception) {
+            Resultado(
+                correcto = false,
+                mensaje = e.message
+                    ?: "Error al realizar el traslado"
+            )
+        }
+    }
+
 }
